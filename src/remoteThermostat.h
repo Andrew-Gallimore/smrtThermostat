@@ -4,7 +4,6 @@
 #include "stateMachine.h"
 #include <WiFi.h>
 #include <ArduinoHA.h>
-#include "credentials.h"
 #include "storage.h"
 
 // Forward declarations
