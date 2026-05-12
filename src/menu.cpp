@@ -9,6 +9,8 @@ lv_obj_t* menuButton1 = nullptr;
 lv_obj_t* menuButton2 = nullptr;
 lv_obj_t* menuButton3 = nullptr;
 lv_obj_t* menuButton4 = nullptr;
+lv_obj_t* menuButton5 = nullptr;
+lv_obj_t* btn5_icon = nullptr;
 bool menuVisible = false;
 
 lv_obj_t* settingsPage = nullptr;
@@ -86,7 +88,7 @@ void UIinitializeMenu() {
     lv_obj_set_size(menuOverlay, lv_obj_get_width(lv_scr_act()), lv_obj_get_height(lv_scr_act()));
     lv_obj_align(menuOverlay, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_bg_color(menuOverlay, lv_color_hex(0x000000), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(menuOverlay, LV_OPA_70, LV_PART_MAIN); // Semi-transparent overlay
+    lv_obj_set_style_bg_opa(menuOverlay, LV_OPA_80, LV_PART_MAIN); // Semi-transparent overlay
     lv_obj_set_style_margin_all(menuOverlay, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(menuOverlay, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(menuOverlay, 0, LV_PART_MAIN);
@@ -135,13 +137,25 @@ void UIinitializeMenu() {
     }, LV_EVENT_ALL, nullptr);
 
     // Calculate button size for quarter screen layout
-    int panelWidth = lv_obj_get_width(menuPanel);
-    int panelHeight = lv_obj_get_height(menuPanel);
-    int buttonWidth = 200;
-    int buttonHeight = 160;
+    int panelWidth       = lv_obj_get_width(menuPanel);
+    int panelHeight      = lv_obj_get_height(menuPanel);
+    int buttonWidth      = 210;
+    int buttonHeight     = 170;
+    int buttonHALFHeight = 79;
     
+    /*
+        Layout:
 
-    // Create 4 menu buttons in quarters
+        xxxxxx xxxxxx            -       -
+        xOFFxx xAUTOx           btn1    btn2
+        xxxxxx xxxxxx            -       -
+
+        xSETxx xxxxxx           btn3     -
+               xMANUx                   btn4
+        xLOCKx xxxxxx           btn5     -
+    */
+
+    // ==== Creating 6 menu buttons ====
     menuButton1 = lv_btn_create(menuPanel);
     lv_obj_set_size(menuButton1, buttonWidth, buttonHeight);
     lv_obj_align(menuButton1, LV_ALIGN_TOP_LEFT, 0, 80);
@@ -164,6 +178,7 @@ void UIinitializeMenu() {
     lv_obj_align(label1_es, LV_ALIGN_CENTER, 0, 22);
 
 
+
     menuButton2 = lv_btn_create(menuPanel);
     lv_obj_set_size(menuButton2, buttonWidth, buttonHeight);
     lv_obj_align(menuButton2, LV_ALIGN_TOP_RIGHT, 0, 80);
@@ -171,33 +186,25 @@ void UIinitializeMenu() {
 
     // Create English label for menuButton2
     lv_obj_t* label2_en = lv_label_create(menuButton2);
-    lv_label_set_text(label2_en, "Settings"); // Was previously settings
+    lv_label_set_text(label2_en, "Auto");
     lv_obj_set_style_text_color(label2_en, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
     lv_obj_set_style_text_font(label2_en, &chivo_mono_34, LV_PART_MAIN);
     lv_obj_set_style_text_align(label2_en, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(label2_en, LV_ALIGN_CENTER, 0, -22);
+    lv_obj_center(label2_en); // Center since it's only one line
 
-    // Create Spanish label for menuButton2
-    lv_obj_t* label2_es = lv_label_create(menuButton2);
-    lv_label_set_text(label2_es, "Ajustes"); // Ajustes for "settings in spanish"
-    lv_obj_set_style_text_color(label2_es, lv_color_hex(0x808080), LV_PART_MAIN);
-    lv_obj_set_style_text_font(label2_es, &chivo_mono_34, LV_PART_MAIN);
-    lv_obj_set_style_text_align(label2_es, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_align(label2_es, LV_ALIGN_CENTER, 0, 22);
 
 
     menuButton3 = lv_btn_create(menuPanel);
-    lv_obj_set_size(menuButton3, buttonWidth, buttonHeight);
-    lv_obj_align(menuButton3, LV_ALIGN_BOTTOM_LEFT, 0, -1);
+    lv_obj_set_size(menuButton3, buttonWidth, buttonHALFHeight);
+    lv_obj_align(menuButton3, LV_ALIGN_BOTTOM_LEFT, 0, -92);
     UIapplyButtonStyle(menuButton3);
     
-    // Create English label for menuButton3
-    lv_obj_t* label3_en = lv_label_create(menuButton3);
-    lv_label_set_text(label3_en, "Manual");
-    lv_obj_set_style_text_color(label3_en, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
-    lv_obj_set_style_text_font(label3_en, &chivo_mono_34, LV_PART_MAIN);
-    lv_obj_set_style_text_align(label3_en, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_center(label3_en); // Center since it's only one word
+    // Create icon for menuButton5
+    lv_obj_t* btn3_icon = lv_img_create(menuButton3);
+    lv_img_set_src(btn3_icon, &settings_36);
+    lv_obj_set_size(btn3_icon, 36, 36);
+    lv_obj_center(btn3_icon);
+
 
 
     menuButton4 = lv_btn_create(menuPanel);
@@ -207,11 +214,24 @@ void UIinitializeMenu() {
     
     // Create English label for menuButton4
     lv_obj_t* label4_en = lv_label_create(menuButton4);
-    lv_label_set_text(label4_en, "Auto");
+    lv_label_set_text(label4_en, "Manual");
     lv_obj_set_style_text_color(label4_en, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
     lv_obj_set_style_text_font(label4_en, &chivo_mono_34, LV_PART_MAIN);
     lv_obj_set_style_text_align(label4_en, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
     lv_obj_center(label4_en); // Center since it's only one word
+
+
+
+    menuButton5 = lv_btn_create(menuPanel);
+    lv_obj_set_size(menuButton5, buttonWidth, buttonHALFHeight);
+    lv_obj_align(menuButton5, LV_ALIGN_BOTTOM_LEFT, 0, -1);
+    UIapplyButtonStyle(menuButton5);
+    
+    // Create icon for menuButton5
+    btn5_icon = lv_img_create(menuButton5);
+    lv_img_set_src(btn5_icon, &unlock_36);
+    lv_obj_set_size(btn5_icon, 36, 36);
+    lv_obj_center(btn5_icon);
 
 
     // Add callbacks for menu buttons (you can customize these)
@@ -226,8 +246,7 @@ void UIinitializeMenu() {
     lv_obj_add_event_cb(menuButton2, [](lv_event_t* e) {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
-            onSettingsButtonClick();
-            UIshowSettings();
+            onAutoButtonClick();
             UIhideMenu();
         }
     }, LV_EVENT_ALL, nullptr);
@@ -235,7 +254,7 @@ void UIinitializeMenu() {
     lv_obj_add_event_cb(menuButton3, [](lv_event_t* e) {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
-            onManualButtonClick();
+            UIshowSettings();
             UIhideMenu();
         }
     }, LV_EVENT_ALL, nullptr);
@@ -243,8 +262,30 @@ void UIinitializeMenu() {
     lv_obj_add_event_cb(menuButton4, [](lv_event_t* e) {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
-            onAutoButtonClick();
+            onManualButtonClick();
             UIhideMenu();
+        }
+    }, LV_EVENT_ALL, nullptr);
+
+    lv_obj_add_event_cb(menuButton5, [](lv_event_t* e) {
+        lv_event_code_t code = lv_event_get_code(e);
+        if (code == LV_EVENT_CLICKED) {
+            // onLockButtonClick();
+
+            bool passed = lockTest();
+
+            if(passed) {
+                UIshowUnlock();
+                lv_img_set_src(btn5_icon, &unlock_36);
+            }else {
+                UIhideUnlock();
+                lv_img_set_src(btn5_icon, &lock_36);
+            }
+
+            // if(isUnlocked()) {
+
+            // }
+            // UIhideMenu();
         }
     }, LV_EVENT_ALL, nullptr);
 }
@@ -266,9 +307,9 @@ void UIshowMenuButton() {
 }
 
 void UIFadeInMenuButtons() {
-    lv_obj_t* buttons[] = {menuButton1, menuButton2, menuButton3, menuButton4};
-    int numButtons = 4;
-    int delayStep = 100; // ms between each button
+    lv_obj_t* buttons[] = {menuButton1, menuButton2, menuButton3, menuButton4, menuButton5};
+    int numButtons = 5;
+    int delayStep = 80; // ms between each button
 
     for (int i = 0; i < numButtons; ++i) {
         lv_obj_set_style_opa(buttons[i], LV_OPA_TRANSP, LV_PART_MAIN); // Start transparent
@@ -287,27 +328,27 @@ void UIFadeInMenuButtons() {
 }
 
 void UIshowMenu() {
-    if (menuOverlay == nullptr) {
+    if (menuOverlay == nullptr || btn5_icon == nullptr || menuVisible) {
         return;
     }
-    
-    if (menuVisible) {
-        return;
-    }
+
     menuVisible = true;
+
+    if(isUnlocked()) {
+        lv_img_set_src(btn5_icon, &unlock_36);
+    } else {
+        lv_img_set_src(btn5_icon, &lock_36);
+    }
     
     lv_obj_remove_flag(menuOverlay, LV_OBJ_FLAG_HIDDEN);
     UIFadeInMenuButtons();
 }
 
 void UIhideMenu() {
-    if (menuOverlay == nullptr) {
+    if (menuOverlay == nullptr || !menuVisible) {
         return;
     }
-    
-    if (!menuVisible) {
-        return;
-    }
+
     menuVisible = false;
     
     lv_obj_add_flag(menuOverlay, LV_OBJ_FLAG_HIDDEN);

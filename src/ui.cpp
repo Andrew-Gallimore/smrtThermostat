@@ -7,6 +7,8 @@ lv_anim_t delayAnim;
 lv_anim_t msgAnim;
 bool delayVisible = false;
 
+lv_obj_t* unlockIcon = nullptr;
+
 lv_obj_t* heatZone = nullptr;
 bool heatZoneVisible = false;
 
@@ -214,6 +216,36 @@ void UIhideDelay() {
     lv_obj_add_flag(delayIcon, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(delayMsg, LV_OBJ_FLAG_HIDDEN);
 }
+
+
+
+
+void UIinitializeLock() {
+    unlockIcon = lv_img_create(lv_scr_act());
+    lv_obj_align(unlockIcon, LV_ALIGN_TOP_RIGHT, -100, 36);
+    lv_img_set_src(unlockIcon, &unlock_color_30);
+    lv_obj_set_size(unlockIcon, 30, 30);
+
+    // ==== Hide it initially ====
+    lv_obj_add_flag(unlockIcon, LV_OBJ_FLAG_HIDDEN);
+}
+
+void UIshowUnlock() {
+    if (unlockIcon == nullptr) {
+        return;
+    }
+
+    lv_obj_remove_flag(unlockIcon, LV_OBJ_FLAG_HIDDEN);
+}
+
+void UIhideUnlock() {
+    if (unlockIcon == nullptr) {
+        return;
+    }
+
+    lv_obj_add_flag(unlockIcon, LV_OBJ_FLAG_HIDDEN);
+}
+
 
 
 

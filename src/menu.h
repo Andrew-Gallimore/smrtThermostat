@@ -7,15 +7,20 @@
 #include "./icons/exit_30.h"
 #include "./icons/right_30.h"
 #include "./icons/wifi_30.h"
+#include "./icons/lock_36.h"
+#include "./icons/unlock_36.h"
+#include "./icons/settings_36.h"
 
+#include "./ui.h"
+#include "./locking.h"
 #include "./remoteThermostat.h"
 #include "./colorHelper.h"
 
 // Forward declarations for callback functions defined in main.cpp
 void onOFFButtonClick();
-void onSettingsButtonClick();
 void onManualButtonClick();
 void onAutoButtonClick();
+void onLockButtonClick();
 
 // Forward delcaration for helper function in ui.cpp
 void UIapplyButtonStyle(lv_obj_t* btn);

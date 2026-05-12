@@ -9,6 +9,7 @@
 #include "./remoteThermostat.h"
 #include "./storage.h"
 #include "./thermometers.h"
+#include "./locking.h"
 
 
 void setRelaysFromState(STATE newState) {
@@ -185,13 +186,16 @@ void onManualFanClick() {
 void onOFFButtonClick() {
   printf("Off button selected\n");
   UIhideDelay();
+  UIhideUnlock();
   UIhideCool();
   UIhideHeat();
   UIhideAutoBTNs();
   UIhideManualBTNs();
   UIhideMenuButton();
+
   UIgoalSet("Off");
   UIshowOnButton();
+
   updateState(STATE::Idle);
   setRelaysFromState(STATE::Idle);
   setLastMode(getCurrentMode());
@@ -204,6 +208,18 @@ void onONButtonClick() {
   UItempErrorCheck();
   UIshowMenuButton();
 
+  // Restoring delay message
+  STATE state = getCurrentState();
+  if(state == STATE::AwaitingCool || state == STATE::AwaitingHeat) {
+    UIshowDelay();
+  }
+
+  // Restoring unlocked icon
+  if(isUnlocked()) {
+    UIshowUnlock();
+  }
+
+  // Restoring last mode
   MODE lastMode = getLastMode();
   if(lastMode == MODE::Manual) {
     onManualButtonClick();
@@ -215,14 +231,9 @@ void onONButtonClick() {
   }
 }
 
-void onSettingsButtonClick() {
-  printf("Settings button selected\n");
-}
-
 void onManualButtonClick() {
   printf("Manual mode selected\n");
   setCurrentMode(MODE::Manual);
-  // updateState(STATE::Idle);
   checkState();
   UIgoalSet("");
   UIshowMenuButton();
@@ -247,6 +258,18 @@ void onAutoButtonClick() {
   UIhideOnButton();
   UIhideManualBTNs();
   checkState();
+}
+
+void onLockButtonClick() {
+  printf("Lock button selected\n");
+
+  bool passed = lockTest();
+
+  if(passed) {
+    UIshowUnlock();
+  }else {
+    UIhideUnlock();
+  }
 }
 
 void onSwitchOnClick() {
@@ -341,6 +364,8 @@ void setup()
   // }, LV_EVENT_ALL, NULL);
 
   UIinitializeDelay();
+
+  UIinitializeLock();
 
   UItempInitialize();
   UIgoalInitialize();

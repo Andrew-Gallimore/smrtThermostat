@@ -14,6 +14,7 @@
 #include "./icons/fan_65.h"
 #include "./icons/flame_65.h"
 #include "./icons/winter_65.h"
+#include "./icons/unlock_color_30.h"
 
 #include "./colorHelper.h"
 #include "stateMachine.h"
@@ -32,6 +33,10 @@ void checkState();
 void UIinitializeDelay();
 void UIshowDelay();
 void UIhideDelay();
+
+void UIinitializeLock();
+void UIshowUnlock();
+void UIhideUnlock();
 
 void UIinitializeHeatZone();
 void UIshowHeat();
