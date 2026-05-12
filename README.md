@@ -1,5 +1,7 @@
 # SMRT Thermostat
 
+> It is so smart, S-M-R-T... I mean S-M-A-R-T
+
 An open source thermostat software built on top of the ESP32-4848S040 hardware. Working offline, it has built-in time protections for preventing short cycling. Natively, it supports bluetooth temerature sensors with fail-safe manual controls when temperature sensors aren't up to date. Additionally it optionally connects to Home Assistant for remote control.
 
 ## Hardware
