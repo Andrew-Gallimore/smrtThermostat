@@ -262,14 +262,6 @@ void onAutoButtonClick() {
 
 void onLockButtonClick() {
   printf("Lock button selected\n");
-
-  bool passed = lockTest();
-
-  if(passed) {
-    UIshowUnlock();
-  }else {
-    UIhideUnlock();
-  }
 }
 
 void onSwitchOnClick() {
@@ -362,6 +354,9 @@ void setup()
   //     ESP.restart(); // Restart the ESP32
   //   }
   // }, LV_EVENT_ALL, NULL);
+  
+  UIinitializeHeatZone();
+  UIinitializeCoolZone();
 
   UIinitializeDelay();
 
@@ -373,8 +368,6 @@ void setup()
   UIinitializeAutoBTNs();
   UIinitializeManualBTNs();
 
-  UIinitializeHeatZone();
-  UIinitializeCoolZone();
   
   UIinitializeMenu();
   UIinitializeOnButton();
