@@ -4,4 +4,7 @@
 bool isUnlocked();
 bool lockTest();
 
+long getLockingResetLimit();
+long getLockingOffLimit();
+
 #endif // LOCKING_H

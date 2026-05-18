@@ -71,20 +71,20 @@ void updateUIfromStates(STATE state) {
 }
 
 void updateState(STATE selectedState) {
-  Serial.println("Here5");
-  Serial.print("Current mode: ");
-  Serial.println((int)getCurrentMode());
+  Serial.println("# Updating State...");
   MODE currentMode = getCurrentMode();
   if(currentMode == MODE::Off) {
+    Serial.println("# In Idle for OFF mode");
     setCurrentState(STATE::Idle);
     return;
   }
 
-  Serial.println("Here6");
-
   if(whoAmI() == PEERTYPE::PARENT) {
     STATE preState = getCurrentState();
-
+    Serial.print("# Was state (");
+    Serial.print(STRING_FROM_STATE[preState]);
+    Serial.println(").");
+    
     if(currentMode == MODE::Auto) {
       computeAutoState();
     }else if(currentMode == MODE::Manual) {
@@ -92,21 +92,18 @@ void updateState(STATE selectedState) {
     }
 
     STATE newState = getCurrentState();
+    Serial.print("# Now is (");
+    Serial.print(STRING_FROM_STATE[newState]);
+    Serial.println(").");
+
 
     if(currentMode == MODE::Manual) {
       UIsetManualBTNState(newState);
     }
 
-    Serial.print(getLastHeavyState());
-    Serial.print(" ");
-    Serial.print(newState);
-    Serial.print(" -- ");
-
-
-    Serial.print(getTemp());
-    Serial.print(" ");
-    Serial.print(getTempGoal());
-    Serial.println("");
+    Serial.print("# Last Heavy is (");
+    Serial.print(STRING_FROM_STATE[getLastHeavyState()]);
+    Serial.println(").");
 
     if(preState != newState) {
       updateUIfromStates(newState);
@@ -124,42 +121,45 @@ void checkState() {
   }
 }
 
+
+
+
 // Callback functions for UI buttons
 void onTempUpButtonClick(lv_event_t* e) {
-    lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_CLICKED) {
-        // Handle button click event
-        printf("autoBTN1 clicked\n");
-        const float currentTemp = getTempGoal();
-        printf("Current temperature: %.1f\n", currentTemp);
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_CLICKED) {
+    // Handle button click event
+    printf("autoBTN1 clicked\n");
+    const float currentTemp = getTempGoal();
+    printf("Current temperature: %.1f\n", currentTemp);
 
-        if(currentTemp < MAX_GOAL_TEMP) {
-            setTempGoal(currentTemp + 1.0);
-        }else {
-            setTempGoal(MAX_GOAL_TEMP);
-        }
-        checkState();
+    if(currentTemp < MAX_GOAL_TEMP) {
+        setTempGoal(currentTemp + 1.0);
+    }else {
+        setTempGoal(MAX_GOAL_TEMP);
     }
+    checkState();
+  }
 }
 
 void onTempDownButtonClick(lv_event_t* e) {
-    lv_event_code_t code = lv_event_get_code(e);
-    if (code == LV_EVENT_CLICKED) {
-        // Handle button click event
-        printf("autoBTN2 clicked\n");
-        const float currentTemp = getTempGoal();
-        printf("Current temperature: %.1f\n", currentTemp);
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_CLICKED) {
+    // Handle button click event
+    printf("autoBTN2 clicked\n");
+    const float currentTemp = getTempGoal();
+    printf("Current temperature: %.1f\n", currentTemp);
 
-        if(currentTemp > MIN_GOAL_TEMP) {
-            setTempGoal(currentTemp - 1.0);
-        }else {
-            setTempGoal(MIN_GOAL_TEMP);
-        }
-        checkState();
+    if(currentTemp > MIN_GOAL_TEMP) {
+      setTempGoal(currentTemp - 1.0);
+    }else {
+      setTempGoal(MIN_GOAL_TEMP);
     }
+    checkState();
+  }
 }
 
-void onManualHeatClick() {
+void onManualHeatClick() {  
   if(getCurrentState() == STATE::Heat || getCurrentState() == STATE::AwaitingHeat) {
     updateState(STATE::Idle);
   }else {
@@ -186,6 +186,7 @@ void onManualFanClick() {
 void onOFFButtonClick() {
   printf("Off button selected\n");
   UIhideDelay();
+  UIhideTimer();
   UIhideUnlock();
   UIhideCool();
   UIhideHeat();
@@ -196,7 +197,9 @@ void onOFFButtonClick() {
   UIgoalSet("Off");
   UIshowOnButton();
 
-  updateState(STATE::Idle);
+  if(getCurrentState() != STATE::Idle) {
+    updateState(STATE::Idle);
+  }
   setRelaysFromState(STATE::Idle);
   setLastMode(getCurrentMode());
   setCurrentMode(MODE::Off);
@@ -207,6 +210,9 @@ void onONButtonClick() {
   printf("On button selected\n");
   UItempErrorCheck();
   UIshowMenuButton();
+
+  // Restoring timer message
+  UIshowTimer();
 
   // Restoring delay message
   STATE state = getCurrentState();
@@ -278,6 +284,7 @@ void onSwitchOnClick() {
 
 // ===== UI UPDATING CALLBACKS =====
 // Safe for cross-task use
+volatile bool flag_offButton = false;
 volatile bool GoalNeedsUpdate = false;
 volatile bool HAGoalNeedsUpdate = false;
 volatile bool TempNeedsUpdate = false;
@@ -336,6 +343,8 @@ void setup()
   lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
   lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
+
+
   // // Create a button
   // lv_obj_t *restartButton = lv_btn_create(lv_scr_act());
   // lv_obj_set_size(restartButton, 100, 50);
@@ -359,6 +368,7 @@ void setup()
   UIinitializeCoolZone();
 
   UIinitializeDelay();
+  UIinitializeTimer();
 
   UIinitializeLock();
 
@@ -420,6 +430,11 @@ void loop() {
   loopMQTT();
 
   UItempErrorCheck();
+
+  if(flag_offButton) {
+    flag_offButton = false;
+    onOFFButtonClick();
+  }
 
   if(GoalNeedsUpdate) {
     float newTempGoal = getTempGoal();

@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <chrono>
 #include <string>
+#include <cmath>
 
 #include "./fonts/chivo_mono_158.h"
 #include "./fonts/chivo_mono_110.h"
@@ -18,6 +19,7 @@
 
 #include "./colorHelper.h"
 #include "stateMachine.h"
+#include "locking.h"
 
 // Forward declarations for callback functions defined in main.cpp
 void onTempUpButtonClick(lv_event_t* e);
@@ -33,6 +35,10 @@ void checkState();
 void UIinitializeDelay();
 void UIshowDelay();
 void UIhideDelay();
+
+void UIinitializeTimer();
+void UIshowTimer();
+void UIhideTimer();
 
 void UIinitializeLock();
 void UIshowUnlock();

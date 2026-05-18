@@ -16,8 +16,19 @@ enum STATE {
   Fan,
 };
 
+static const char* STRING_FROM_STATE[6] = {
+  "Idle",
+  "AwaitingHeat",
+  "Heat",
+  "AwaitingCool",
+  "Cool",
+  "Fan"
+};
+
 
 // Forward declarations
+void onOFFButtonClick();
+extern volatile bool flag_offButton;
 extern volatile bool GoalNeedsUpdate;
 extern volatile bool HAGoalNeedsUpdate;
 extern volatile bool TempNeedsUpdate;
@@ -62,6 +73,10 @@ void onHARemoteMode(MODE newMode);
 void resetHeavyEndedTimer();
 long int timeSinceLastHeavyState();
 long int getDelay(STATE fromState, STATE toState);
+
+void newInteraction();
+long int getResetTimeLimit();
+long int timeSinceLastInteraction();
 
 void computeManualState(STATE selectedState);
 void computeAutoState();

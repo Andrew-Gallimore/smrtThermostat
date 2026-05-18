@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "remoteThermostat.h"
 #include "storage.h"
+#include "locking.h"
 
 float temp            = 70; // overwritten by storage
 float tempGoal        = 70; // overwritten by storage
@@ -178,6 +179,8 @@ void setCurrentStateSilently(STATE newState) {
 }
 
 
+
+
 long int lastHeavyTime = 0;
 void resetHeavyEndedTimer() {
   lastHeavyTime = millis();
@@ -186,6 +189,25 @@ void resetHeavyEndedTimer() {
 long int timeSinceLastHeavyState() {
   return millis() - lastHeavyTime;
 }
+
+
+
+// NOTE: 3600000ms = 1hr
+long int RESET_LIMIT_MS = 70000; // 51 Seconds
+// long int RESET_LIMIT_MS = 3 * 3600000; // 3 hours
+long int lastInteractionTime = 0;
+
+void newInteraction() {
+  lastInteractionTime = millis();
+}
+long int getResetTimeLimit() {
+  return RESET_LIMIT_MS;
+}
+long int timeSinceLastInteraction() {
+  return millis() - lastInteractionTime;
+}
+
+
 
 const int LONG_STATE_DELAY = 480000;    // 8 minutes in ms
 const int REG_STATE_DELAY = 300000;     // 5 minutes in ms
@@ -224,6 +246,23 @@ long int getDelay(STATE fromState, STATE toState) {
  */
 void computeManualState(STATE selectedState) {
   STATE currentState = getCurrentState();
+
+  // If the resetTimer is up and the device isn't unlocked
+  if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
+    Serial.println(">>>> Turning off due to timer...");
+
+    if(currentState == STATE::Heat || currentState == STATE::Cool) {
+      setLastHeavyState(currentState);
+      setCurrentState(STATE::Idle);
+      resetHeavyEndedTimer();
+    }else {
+      setCurrentState(STATE::Idle);
+    }
+
+    flag_offButton = true;
+    return;
+  }
+
   // ==== Switching between states ====
   switch (currentState) {
 
@@ -412,6 +451,15 @@ void computeAutoState() {
     case STATE::AwaitingCool:
     case STATE::AwaitingHeat:
     case STATE::Fan:
+      // If the resetTimer is up and the device isn't unlocked
+      if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
+        Serial.println(">>>> Turning off due to timer...");
+        setCurrentState(STATE::Idle);
+        flag_offButton = true;
+        break;
+      }
+
+      // Otherwise, just do the regular automatic changes
       if(temp + margin < goalTemp) {
         setCurrentState(STATE::AwaitingHeat);
       }else if(temp - margin > goalTemp) {
@@ -422,31 +470,47 @@ void computeAutoState() {
       break;
 
     case STATE::Cool:
+      // If the resetTimer is up and the device isn't unlocked
+      if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
+        Serial.println(">>>> Turning off due to timer...");
+        setLastHeavyState(currentState);
+        setCurrentState(STATE::Idle);
+        resetHeavyEndedTimer();
+        flag_offButton = true;
+        break;
+      }
+
       if(temp + margin < goalTemp) {
         setLastHeavyState(currentState);
         setCurrentState(STATE::AwaitingHeat);
         resetHeavyEndedTimer();
-      }
-      if(abs(temp - goalTemp) < margin) {
+      }else if(abs(temp - goalTemp) < margin) {
         setLastHeavyState(currentState);
         setCurrentState(STATE::Idle);
         resetHeavyEndedTimer();
       }
       break;
     case STATE::Heat:
+      // If the resetTimer is up and the device isn't unlocked
+      if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
+        Serial.println(">>>> Turning off due to timer...");
+        setLastHeavyState(currentState);
+        setCurrentState(STATE::Idle);
+        resetHeavyEndedTimer();
+        flag_offButton = true;
+        break;
+      }
+      
       if(temp - margin > goalTemp) {
         setLastHeavyState(currentState);
         setCurrentState(STATE::AwaitingCool);
         resetHeavyEndedTimer();
-      }
-      if(abs(temp - goalTemp) < margin) {
+      }else if(abs(temp - goalTemp) < margin) {
         setLastHeavyState(currentState);
         setCurrentState(STATE::Idle);
         resetHeavyEndedTimer();
       }
       break;
-      
-
   }
 
   Serial.println(timeSinceLastHeavyState());

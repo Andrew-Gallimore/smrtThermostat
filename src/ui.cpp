@@ -4,10 +4,16 @@
 lv_obj_t* delayIcon = nullptr;
 lv_obj_t* delayMsg = nullptr;
 lv_anim_t delayAnim;
-lv_anim_t msgAnim;
+lv_anim_t delayMsgAnim;
 bool delayVisible = false;
 
 lv_obj_t* unlockIcon = nullptr;
+
+lv_obj_t* timerIcon = nullptr;
+lv_obj_t* timerMsg = nullptr;
+lv_anim_t timerAnim;
+lv_anim_t timerMsgAnim;
+bool timerVisible = false;
 
 lv_obj_t* heatZone = nullptr;
 bool heatZoneVisible = false;
@@ -60,19 +66,19 @@ void UIapplyButtonStyle(lv_obj_t* btn) {
 void UIinitializeDelay() {
     // ==== Icon for delay ====
     delayIcon = lv_obj_create(lv_scr_act());
-    lv_obj_set_size(delayIcon, 32, 48); // Corrected size to fit 12px circles and 4px spacing
-    lv_obj_align(delayIcon, LV_ALIGN_TOP_LEFT, 30, 30); // Position the grid
+    lv_obj_set_size(delayIcon, 32, 48); // Corrected size to fit 2x3 12px circles, 4px spaces
+    lv_obj_align(delayIcon, LV_ALIGN_TOP_LEFT, 30, 30);
 
     lv_obj_set_layout(delayIcon, LV_LAYOUT_GRID);
-    lv_obj_set_style_bg_opa(delayIcon, LV_OPA_TRANSP, LV_PART_MAIN); // No background
-    lv_obj_set_scrollbar_mode(delayIcon, LV_SCROLLBAR_MODE_OFF); // Not scrollable
-    lv_obj_add_flag(delayIcon, LV_OBJ_FLAG_CLICKABLE); // Not interactable
-    lv_obj_set_style_border_width(delayIcon, 0, LV_PART_MAIN); // No border
+    lv_obj_set_style_bg_opa(delayIcon, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_scrollbar_mode(delayIcon, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_flag(delayIcon, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_border_width(delayIcon, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(delayIcon, 0, LV_PART_MAIN);
 
     // Define static arrays for grid column and row descriptors
     static lv_coord_t column_dsc[] = {12, 4, 12, LV_GRID_TEMPLATE_LAST};
-    static lv_coord_t row_dsc[] = {12, 4, 12, 4, 12, LV_GRID_TEMPLATE_LAST}; // Ensure proper spacing and alignment
+    static lv_coord_t row_dsc[] = {12, 4, 12, 4, 12, LV_GRID_TEMPLATE_LAST};
 
     lv_obj_set_style_grid_column_dsc_array(delayIcon, column_dsc, LV_PART_MAIN);
     lv_obj_set_style_grid_row_dsc_array(delayIcon, row_dsc, LV_PART_MAIN);
@@ -80,11 +86,11 @@ void UIinitializeDelay() {
     for (int i = 0; i < 6; ++i) {
         lv_obj_t* circle = lv_obj_create(delayIcon);
         lv_obj_set_size(circle, 12, 12); // Circle size
-        lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, LV_PART_MAIN); // Make it circular
-        lv_obj_set_style_bg_color(circle, lv_color_hex(0xFFFFFF), LV_PART_MAIN); // Set color
-        lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN); // Fully opaque
-        lv_obj_set_style_border_width(circle, 0, LV_PART_MAIN); // No border
-        lv_obj_set_style_pad_all(circle, 0, LV_PART_MAIN); // No padding or margins
+        lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(circle, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_border_width(circle, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(circle, 0, LV_PART_MAIN);
         lv_obj_set_grid_cell(circle, LV_GRID_ALIGN_CENTER, i % 2, 1, LV_GRID_ALIGN_CENTER, i / 2, 1);
     }
 
@@ -100,45 +106,45 @@ void UIinitializeDelay() {
             for(int i = 0; i < 6; i++) {
                 lv_obj_t* circle = lv_obj_get_child(parent, i);
                 if(i == 1 || i == 4) {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0x000000), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
                 }else {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
                 }
             }
         }else if(v == 2) {
             for(int i = 0; i < 6; i++) {
                 lv_obj_t* circle = lv_obj_get_child(parent, i);
                 if(i == 0 || i == 1 || i == 3) {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0x000000), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
                 }else {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
                 }
             }
         }else if(v == 4) {
             for(int i = 0; i < 6; i++) {
                 lv_obj_t* circle = lv_obj_get_child(parent, i);
                 if(i == 0 || i == 1 || i == 2 || i == 3 || i == 5) {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0x000000), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
                 }else {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
                 }
             }
         }else if(v == 7) {
             for(int i = 0; i < 6; i++) {
                 lv_obj_t* circle = lv_obj_get_child(parent, i);
                 if(i == 0 || i == 2 || i == 3 || i == 4 || i == 5) {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0x000000), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
                 }else {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
                 }
             }
         }else if(v == 10) {
             for(int i = 0; i < 6; i++) {
                 lv_obj_t* circle = lv_obj_get_child(parent, i);
                 if(i == 2 || i == 4 || i == 5) {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0x000000), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
                 }else {
-                    lv_obj_set_style_bg_color(circle, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+                    lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
                 }
             }
         }
@@ -159,13 +165,14 @@ void UIinitializeDelay() {
     lv_obj_move_foreground(delayMsg);
 
     // Animation to update the delay message every second
-    lv_anim_init(&msgAnim);
-    lv_anim_set_var(&msgAnim, delayMsg);
-    lv_anim_set_exec_cb(&msgAnim, [](void* obj, int32_t v) {
+    lv_anim_init(&delayMsgAnim);
+    lv_anim_set_var(&delayMsgAnim, delayMsg);
+    lv_anim_set_exec_cb(&delayMsgAnim, [](void* obj, int32_t v) {
         long int remaining = (getDelay(getLastHeavyState(), getCurrentState()) - timeSinceLastHeavyState()) / 1000;
         if(remaining < 0) remaining = 0;
 
         if(delayVisible && remaining == 0) {
+            // This checks if the state in the statemachine can change after the timer
             checkState();
         }
         
@@ -175,10 +182,10 @@ void UIinitializeDelay() {
             lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "%ld sec...", remaining);
         }
     });
-    lv_anim_set_values(&msgAnim, 0, 12);
-    lv_anim_set_time(&msgAnim, 1000);
-    lv_anim_set_path_cb(&msgAnim, lv_anim_path_linear);
-    lv_anim_set_repeat_count(&msgAnim, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_set_values(&delayMsgAnim, 0, 12);
+    lv_anim_set_time(&delayMsgAnim, 1000);
+    lv_anim_set_path_cb(&delayMsgAnim, lv_anim_path_linear);
+    lv_anim_set_repeat_count(&delayMsgAnim, LV_ANIM_REPEAT_INFINITE);
 
     // ==== Hide both initially ====
     lv_obj_add_flag(delayIcon, LV_OBJ_FLAG_HIDDEN);
@@ -186,7 +193,7 @@ void UIinitializeDelay() {
 }
 
 void UIshowDelay() {
-    if (delayIcon == nullptr || &delayAnim == nullptr || &msgAnim == nullptr) {
+    if (delayIcon == nullptr || &delayAnim == nullptr || &delayMsgAnim == nullptr) {
         return;
     }
 
@@ -196,13 +203,13 @@ void UIshowDelay() {
     delayVisible = true;
 
     lv_anim_start(&delayAnim);
-    lv_anim_start(&msgAnim);
+    lv_anim_start(&delayMsgAnim);
     lv_obj_remove_flag(delayIcon, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(delayMsg, LV_OBJ_FLAG_HIDDEN);
 }
 
 void UIhideDelay() {
-    if(&delayAnim == nullptr || &msgAnim == nullptr || delayIcon == nullptr || delayMsg == nullptr) {
+    if(&delayAnim == nullptr || &delayMsgAnim == nullptr || delayIcon == nullptr || delayMsg == nullptr) {
         return;
     }
 
@@ -212,7 +219,7 @@ void UIhideDelay() {
     delayVisible = false;
 
     lv_anim_del(&delayAnim, nullptr);
-    lv_anim_del(&msgAnim, nullptr);
+    lv_anim_del(&delayMsgAnim, nullptr);
     lv_obj_add_flag(delayIcon, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(delayMsg, LV_OBJ_FLAG_HIDDEN);
 }
@@ -244,6 +251,178 @@ void UIhideUnlock() {
     }
 
     lv_obj_add_flag(unlockIcon, LV_OBJ_FLAG_HIDDEN);
+}
+
+
+
+void UIinitializeTimer() {
+    // ==== Icon for delay ====
+    timerIcon = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(timerIcon, 32, 32); // Sized to fit 4x4 12px, 4px grid combo
+    lv_obj_align(timerIcon, LV_ALIGN_BOTTOM_LEFT, 30, -30);
+
+    lv_obj_set_layout(timerIcon, LV_LAYOUT_GRID);
+    lv_obj_set_style_bg_opa(timerIcon, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_scrollbar_mode(timerIcon, LV_SCROLLBAR_MODE_OFF);     // Not scrollable
+    lv_obj_add_flag(timerIcon, LV_OBJ_FLAG_CLICKABLE);               // Not interactable
+    lv_obj_set_style_border_width(timerIcon, 0, LV_PART_MAIN);       // No border
+    lv_obj_set_style_pad_all(timerIcon, 0, LV_PART_MAIN);
+
+    // Define static arrays for grid column and row descriptors
+    static lv_coord_t column_dsc[] = {12, 4, 12, LV_GRID_TEMPLATE_LAST};
+    static lv_coord_t row_dsc[] = {12, 4, 12, LV_GRID_TEMPLATE_LAST};
+
+    lv_obj_set_style_grid_column_dsc_array(timerIcon, column_dsc, LV_PART_MAIN);
+    lv_obj_set_style_grid_row_dsc_array(timerIcon, row_dsc, LV_PART_MAIN);
+
+    for (int i = 0; i < 4; ++i) {
+        lv_obj_t* circle = lv_obj_create(timerIcon);
+        lv_obj_set_size(circle, 12, 12);
+        lv_obj_set_style_radius(circle, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(circle, C_MinorMessage, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(circle, LV_OPA_COVER, LV_PART_MAIN);
+        lv_obj_set_style_border_width(circle, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(circle, 0, LV_PART_MAIN);
+        lv_obj_set_grid_cell(circle, LV_GRID_ALIGN_CENTER, i % 2, 1, LV_GRID_ALIGN_CENTER, i / 2, 1);
+    }
+
+    // Move timerIcon to foreground so it's above heat/cool zones
+    lv_obj_move_foreground(timerIcon);
+
+    /*
+        0 1       O *     O *    * O     * O
+        2 3       * O     O *    O *     * O
+    */
+
+    // Animation for the timerIcon
+    lv_anim_init(&timerAnim);
+    lv_anim_set_var(&timerAnim, timerIcon);
+    lv_anim_set_exec_cb(&timerAnim, [](void* obj, int32_t v) {
+        lv_obj_t* parent = static_cast<lv_obj_t*>(obj);
+        if(v == 0) {
+            lv_obj_t* circle = lv_obj_get_child(parent, 3);
+            lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_t* circle2 = lv_obj_get_child(parent, 2);
+            lv_obj_set_style_bg_opa(circle2, LV_OPA_COVER, LV_PART_MAIN);
+        }else if(v == 2) {
+            lv_obj_t* circle = lv_obj_get_child(parent, 0);
+            lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_t* circle2 = lv_obj_get_child(parent, 1);
+            lv_obj_set_style_bg_opa(circle2, LV_OPA_COVER, LV_PART_MAIN);
+        }else if(v == 6) {
+            lv_obj_t* circle = lv_obj_get_child(parent, 2);
+            lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_t* circle2 = lv_obj_get_child(parent, 3);
+            lv_obj_set_style_bg_opa(circle2, LV_OPA_COVER, LV_PART_MAIN);
+        }else if(v == 8) {
+            lv_obj_t* circle = lv_obj_get_child(parent, 1);
+            lv_obj_set_style_bg_opa(circle, LV_OPA_TRANSP, LV_PART_MAIN);
+            lv_obj_t* circle2 = lv_obj_get_child(parent, 0);
+            lv_obj_set_style_bg_opa(circle2, LV_OPA_COVER, LV_PART_MAIN);
+        }
+    });
+    lv_anim_set_values(&timerAnim, 0, 12);
+    lv_anim_set_time(&timerAnim, 6000); // 6 seconds
+    lv_anim_set_path_cb(&timerAnim, lv_anim_path_linear);
+    lv_anim_set_repeat_count(&timerAnim, LV_ANIM_REPEAT_INFINITE);
+
+    // ==== Message for timer ====
+    timerMsg = lv_label_create(lv_scr_act());
+    lv_label_set_text(timerMsg, "Resets in x hours...");
+    lv_obj_align_to(timerMsg, timerIcon, LV_ALIGN_OUT_RIGHT_MID, 10, -6); // Align to the right of the icon
+    lv_obj_set_style_text_font(timerMsg, &chivo_mono_34, LV_PART_MAIN); // Set font
+    lv_obj_set_style_text_color(timerMsg, C_MinorMessage, LV_PART_MAIN); // Set text color to white
+
+    // Move timerMsg to foreground as well
+    lv_obj_move_foreground(timerMsg);
+
+    // Animation to update the timer message every minute
+    lv_anim_init(&timerMsgAnim);
+    lv_anim_set_var(&timerMsgAnim, timerMsg);
+    lv_anim_set_exec_cb(&timerMsgAnim, [](void* obj, int32_t v) {
+        if(v == 2) return; //0 gets fired right after 2, just use two...
+
+        /* 
+            /1000 to get sec
+            /60 to get minutes
+            /60 to get hours
+            so /3600000 ms to hours
+        */
+        double remainingMin = (getResetTimeLimit() - timeSinceLastInteraction()) / 1000.0;
+        if(remainingMin < 0) remainingMin = 0;
+        if(timerVisible && remainingMin == 0) {
+            // This checks if the state in the statemachine can change after the timer
+            checkState();
+        }
+
+        Serial.println(remainingMin);
+
+        if(v == 0) {
+            if (remainingMin / 60.0 >= 1.0) {
+                // There is more than an hour left
+                long int displayHours = round(remainingMin / 60.0);
+                if(displayHours > 1) {
+                    lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj),
+                                          "Hold ends in %ldhrs", displayHours);
+                }else {
+                    lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj),
+                                          "Hold ends in %ldhr", displayHours);
+                }
+            } else if (remainingMin >= 5) {
+                // Within 5-60 minutes
+                lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj),
+                                      "Hold ends in %ldmin",
+                                      static_cast<long>(round(remainingMin/5) * 5));
+            } else {
+                // Under 5 minutes
+                lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj),
+                                      "Hold ends in %ldmin",
+                                      static_cast<long>(round(remainingMin + 1)));
+            }
+        }else if(v == 1) {
+            lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "Tap to renew time");
+        }
+    });
+    lv_anim_set_values(&timerMsgAnim, 0, 2);
+    lv_anim_set_time(&timerMsgAnim, 10000); // 5 second per frame (2 frames per animation cycle)
+    lv_anim_set_path_cb(&timerMsgAnim, lv_anim_path_linear);
+    lv_anim_set_repeat_count(&timerMsgAnim, LV_ANIM_REPEAT_INFINITE);
+
+    // ==== Hide both initially ====
+    lv_obj_add_flag(timerIcon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(timerMsg, LV_OBJ_FLAG_HIDDEN);
+}
+
+void UIshowTimer() {
+    if (timerIcon == nullptr || &timerAnim == nullptr || &timerMsgAnim == nullptr) {
+        return;
+    }
+
+    if(timerVisible) {
+        return;
+    }
+    timerVisible = true;
+
+    lv_anim_start(&timerAnim);
+    lv_anim_start(&timerMsgAnim);
+    lv_obj_remove_flag(timerIcon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(timerMsg, LV_OBJ_FLAG_HIDDEN);
+}
+
+void UIhideTimer() {
+    if(&timerAnim == nullptr || &timerMsgAnim == nullptr || timerIcon == nullptr || timerMsg == nullptr) {
+        return;
+    }
+
+    if(!timerVisible) {
+        return;
+    }
+    timerVisible = false;
+
+    lv_anim_del(&timerAnim, nullptr);
+    lv_anim_del(&timerMsgAnim, nullptr);
+    lv_obj_add_flag(timerIcon, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(timerMsg, LV_OBJ_FLAG_HIDDEN);
 }
 
 
@@ -424,7 +603,7 @@ void UIhideCool() {
 void UItempInitialize() {
     // Initialize the temperature text
     tempText = lv_label_create(lv_scr_act());
-    lv_label_set_text(tempText, "1234");
+    lv_label_set_text(tempText, "");
     lv_obj_align(tempText, LV_ALIGN_TOP_LEFT, 24, 115);
     lv_obj_set_style_text_color(tempText, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_text_font(tempText, &chivo_mono_158, LV_PART_MAIN);
@@ -617,6 +796,9 @@ void UIinitializeAutoBTNs() {
 
     // Set a callback for autoBTN2
     lv_obj_add_event_cb(autoBTN2, onTempDownButtonClick, LV_EVENT_ALL, nullptr);
+
+    lv_obj_add_flag(autoBTN1, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(autoBTN2, LV_OBJ_FLAG_HIDDEN);
 }
 
 void UIshowAutoBTNs() {
@@ -663,7 +845,7 @@ void UIinitializeManualBTNs() {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
             // Handle manual button click
-            Serial.println("Manual heat clicked");
+            Serial.println("Manual heat clicked");            
             onManualHeatClick();
         }
     }, LV_EVENT_ALL, nullptr);
@@ -781,6 +963,8 @@ void UIinitializeOnButton() {
         if (code == LV_EVENT_CLICKED) {
             onSwitchOnClick();
 
+            lv_obj_clear_flag(onButton, LV_OBJ_FLAG_CLICKABLE);
+
             lv_obj_set_style_bg_color(onButton, C_Orange, LV_PART_INDICATOR);
             lv_obj_set_style_bg_opa(onButton, LV_OPA_COVER, LV_PART_INDICATOR);
 
@@ -789,7 +973,8 @@ void UIinitializeOnButton() {
             lv_timer_set_repeat_count(timer, 1);
             lv_timer_set_cb(timer, [](lv_timer_t* t) {
                 if (onButton) {
-                    lv_obj_clear_state(onButton, LV_STATE_CHECKED); // Switch OFF
+                    lv_obj_add_flag(onButton, LV_OBJ_FLAG_CLICKABLE); // Re-enable
+                    lv_obj_clear_state(onButton, LV_STATE_CHECKED);   // Switch OFF
                     lv_obj_set_style_bg_color(onButton, C_GoalTemp, LV_PART_INDICATOR);
                     lv_obj_set_style_bg_opa(onButton, LV_OPA_COVER, LV_PART_INDICATOR);
                 }

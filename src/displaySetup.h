@@ -5,6 +5,7 @@
 #include <ESP32_4848S040.h>
 #include <lvgl.h>
 #include "touch.h"
+#include "./stateMachine.h"
 #include "./colorHelper.h"
 
 // Display variables
@@ -50,6 +51,7 @@ void readTouchpad(lv_indev_t * indev, lv_indev_data_t * data ) {
       data->point.x = touch_last_x;
       data->point.y = touch_last_y;
       //Serial.print("Touched : "); Serial.print(touch_last_x); Serial.print(" x ");Serial.println(touch_last_y);
+      newInteraction();
     }
     else if (touch_released()) {
       data->state = LV_INDEV_STATE_RELEASED;
