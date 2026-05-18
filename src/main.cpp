@@ -210,14 +210,16 @@ void onONButtonClick() {
   printf("On button selected\n");
   UItempErrorCheck();
   UIshowMenuButton();
-
-  // Restoring timer message
-  UIshowTimer();
-
+  
   // Restoring delay message
   STATE state = getCurrentState();
   if(state == STATE::AwaitingCool || state == STATE::AwaitingHeat) {
     UIshowDelay();
+  }
+  
+  // Restoring timer message
+  if(state != STATE::Idle) {
+    UIshowTimer();
   }
 
   // Restoring unlocked icon

@@ -165,6 +165,12 @@ void setCurrentState(STATE newState) {
   updateSharedState(newState);
   storeLastState(lastState);
   storeState(newState);
+
+  if(newState != STATE::Idle) {
+    UIshowTimer();
+  }else {
+    UIhideTimer();
+  }
 }
 
 void setCurrentStateSilently(STATE newState) {

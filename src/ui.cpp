@@ -419,8 +419,8 @@ void UIhideTimer() {
     }
     timerVisible = false;
 
-    lv_anim_del(&timerAnim, nullptr);
-    lv_anim_del(&timerMsgAnim, nullptr);
+    lv_anim_del(timerIcon, nullptr);
+    lv_anim_del(timerMsg, nullptr);
     lv_obj_add_flag(timerIcon, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(timerMsg, LV_OBJ_FLAG_HIDDEN);
 }

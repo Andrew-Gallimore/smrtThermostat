@@ -25,8 +25,11 @@ static const char* STRING_FROM_STATE[6] = {
   "Fan"
 };
 
+// Forward declarations for ui.cpp
+extern void UIshowTimer();
+extern void UIhideTimer();
 
-// Forward declarations
+// Forward declarations for main.cpp
 void onOFFButtonClick();
 extern volatile bool flag_offButton;
 extern volatile bool GoalNeedsUpdate;
