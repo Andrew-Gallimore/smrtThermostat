@@ -350,10 +350,6 @@ void UIinitializeTimer() {
         */
         double remainingMin = (getResetTimeLimit() - timeSinceLastInteraction()) / 1000.0;
         if(remainingMin < 0) remainingMin = 0;
-        if(timerVisible && remainingMin == 0) {
-            // This checks if the state in the statemachine can change after the timer
-            checkState();
-        }
 
         Serial.println(remainingMin);
 
@@ -381,6 +377,16 @@ void UIinitializeTimer() {
             }
         }else if(v == 1) {
             lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "Tap to renew time");
+        }
+
+        if(timerVisible && remainingMin == 0) {
+            // This checks if the state in the statemachine can change after the timer
+            checkState();
+
+            // If its unlocked, it won't automatically hide when turning off
+            if(isUnlocked()) {
+                UIhideTimer();
+            }
         }
     });
     lv_anim_set_values(&timerMsgAnim, 0, 2);

@@ -11,5 +11,13 @@ bool isUnlocked() {
 bool lockTest() {
     locked = !locked;
 
+    // if(locked) {
+    //     UIhideTimer();
+    // }else {
+    //     if(getCurrentState() != STATE::Idle) {
+    //         UIshowTimer();
+    //     }
+    // }
+
     return locked;
 }

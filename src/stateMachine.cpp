@@ -166,10 +166,12 @@ void setCurrentState(STATE newState) {
   storeLastState(lastState);
   storeState(newState);
 
-  if(newState != STATE::Idle) {
-    UIshowTimer();
-  }else {
-    UIhideTimer();
+  if(!isUnlocked()) {
+    if(newState != STATE::Idle) {
+      UIshowTimer();
+    }else {
+      UIhideTimer();
+    }
   }
 }
 

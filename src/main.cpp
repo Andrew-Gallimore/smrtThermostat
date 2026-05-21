@@ -216,11 +216,6 @@ void onONButtonClick() {
   if(state == STATE::AwaitingCool || state == STATE::AwaitingHeat) {
     UIshowDelay();
   }
-  
-  // Restoring timer message
-  if(state != STATE::Idle) {
-    UIshowTimer();
-  }
 
   // Restoring unlocked icon
   if(isUnlocked()) {
