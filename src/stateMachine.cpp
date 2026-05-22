@@ -1,4 +1,8 @@
 #include "stateMachine.h"
+#include <Arduino.h>
+#include "remoteThermostat.h"
+#include "storage.h"
+#include "locking.h"
 
 float temp            = 70; // overwritten by storage
 float tempGoal        = 70; // overwritten by storage

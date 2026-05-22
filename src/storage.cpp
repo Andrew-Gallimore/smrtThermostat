@@ -4,7 +4,7 @@
 #include <SD.h>
 #include <SPI.h>
 
-#define DO_SD_CARD false
+#define DO_SD_CARD true
 
 uint8_t myMac[6];
 bool myMacFound = false;
@@ -33,12 +33,17 @@ char storage_networkPWD[256]  = "";
 
 
 PEERTYPE whoAmI() {
-    if(!myMacFound) {
-        esp_read_mac(myMac, ESP_MAC_WIFI_STA);
-        myMacFound = true;
-    }
+  // Getting my mac address
+  if(!myMacFound) {
+      esp_read_mac(myMac, ESP_MAC_WIFI_STA);
+      myMacFound = true;
+  }
+
   return PEERTYPE::PARENT;
+
+  // // Telling if we are a parent or child device
   // if(memcmp(myMac, PARENT_ADDR, sizeof(myMac)) == 0) {
+  //   return PEERTYPE::PARENT;
   // } else {
   //   return PEERTYPE::CHILD;
   // }
@@ -54,18 +59,18 @@ void initializeStorage() {
         return;
     }
 
-    // // Create task to store variables periodically
-    // xTaskCreatePinnedToCore(
-    //     storeVariablesTask,       // Task function
-    //     "StoreVariablesTask",     // Name of the task
-    //     4096,                     // Stack size (in bytes)
-    //     NULL,                     // Task input parameter
-    //     1,                        // Priority
-    //     &storeVariablesTaskHandle,// Task handle
-    //     1                         // Core 1
-    // );
+    // Create task to store variables periodically
+    xTaskCreatePinnedToCore(
+        storeVariablesTask,       // Task function
+        "StoreVariablesTask",     // Name of the task
+        4096,                     // Stack size (in bytes)
+        NULL,                     // Task input parameter
+        1,                        // Priority
+        &storeVariablesTaskHandle,// Task handle
+        1                         // Core 1
+    );
 
-    // initSDCard();
+    initSDCard();
 }
 
 void initSDCard() {
@@ -74,15 +79,15 @@ void initSDCard() {
         return;
     }
 
-    // SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
+    SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
 
-    // if (!SD.begin(SD_CS)) {
-    //     Serial.println("SD Card failed or not present");
-    //     sdCardInitialized = false;
-    //     return;
-    // }
-    // sdCardInitialized = true;
-    // Serial.println("SD Card initialized");
+    if (!SD.begin(SD_CS)) {
+        Serial.println("SD Card failed or not present");
+        sdCardInitialized = false;
+        return;
+    }
+    sdCardInitialized = true;
+    Serial.println("SD Card initialized");
 }
 
 void writeFile(const char* filename, const char* data) {
@@ -90,24 +95,24 @@ void writeFile(const char* filename, const char* data) {
         return;
     }
 
-    // if (!sdCardInitialized) {
-    //     // Try to reinitialize in case card was plugged in
-    //     initSDCard();
-    //     if (!sdCardInitialized) {
-    //         Serial.printf("SD Card not available, cannot write to %s\n", filename);
-    //         return;
-    //     }
-    // }
+    if (!sdCardInitialized) {
+        // Try to reinitialize in case card was plugged in
+        initSDCard();
+        if (!sdCardInitialized) {
+            Serial.printf("SD Card not available, cannot write to %s\n", filename);
+            return;
+        }
+    }
 
-    // File dataFile = SD.open(filename, FILE_WRITE);
-    // if (dataFile) {
-    //     dataFile.println(data);
-    //     dataFile.close();
-    //     Serial.printf("Data written to %s\n", filename);
-    // } else {
-    //     Serial.printf("Error opening %s for writing\n", filename);
-    //     sdCardInitialized = false;  // Mark as failed in case card was removed
-    // }
+    File dataFile = SD.open(filename, FILE_WRITE);
+    if (dataFile) {
+        dataFile.println(data);
+        dataFile.close();
+        Serial.printf("Data written to %s\n", filename);
+    } else {
+        Serial.printf("Error opening %s for writing\n", filename);
+        sdCardInitialized = false;  // Mark as failed in case card was removed
+    }
 }
 
 void readFile(const char* filename, void (*parserCallback)(const char*)) {
@@ -115,44 +120,31 @@ void readFile(const char* filename, void (*parserCallback)(const char*)) {
         return;
     }
 
-    // if (!sdCardInitialized) {
-    //     // Try to reinitialize in case card was plugged in
-    //     initSDCard();
-    //     if (!sdCardInitialized) {
-    //         Serial.printf("SD Card not available, cannot read from %s\n", filename);
-    //         return;
-    //     }
-    // }
+    if (!sdCardInitialized) {
+        // Try to reinitialize in case card was plugged in
+        initSDCard();
+        if (!sdCardInitialized) {
+            Serial.printf("SD Card not available, cannot read from %s\n", filename);
+            return;
+        }
+    }
 
-    // char buffer[256];
-    // buffer[0] = '\0';
+    char buffer[256];
+    buffer[0] = '\0';
 
-    // File dataFile = SD.open(filename);
-    // if (dataFile) {
-    //     while (dataFile.available()) {
-    //         size_t len = dataFile.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
-    //         buffer[len] = '\0'; // Null-terminate the string
-    //     }
-    //     dataFile.close();
-    // } else {
-    //     Serial.printf("Error opening %s for reading\n", filename);
-    //     sdCardInitialized = false;  // Mark as failed in case card was removed
-    // }
+    File dataFile = SD.open(filename);
+    if (dataFile) {
+        while (dataFile.available()) {
+            size_t len = dataFile.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
+            buffer[len] = '\0'; // Null-terminate the string
+        }
+        dataFile.close();
+    } else {
+        Serial.printf("Error opening %s for reading\n", filename);
+        sdCardInitialized = false;  // Mark as failed in case card was removed
+    }
 
-    // parserCallback(buffer);
-
-    // // // Parse CSV line
-    // // // Expected format: timestamp,temp,tempGoal,state,lastState,lastHeavyState,mode,lastMode
-    // // unsigned long timestamp;
-    // // int parsed = sscanf(buffer, "%lu,%f,%f,%d,%d,%d,%d,%d",
-    // //                     &timestamp,
-    // //                     &storage_temp,
-    // //                     &storage_tempGoal,
-    // //                     &storage_state,
-    // //                     &storage_lastState,
-    // //                     &storage_lastHeavyState,
-    // //                     &storage_mode,
-    // //                     &storage_lastMode);
+    parserCallback(buffer);
 }
 
 void storeVariablesTask(void* parameter) {
@@ -389,75 +381,3 @@ void getStoredNetworkPWD(char* PWDBuffer, size_t bufSize) {
   strncpy(PWDBuffer, storage_networkPWD, bufSize - 1);
   PWDBuffer[bufSize - 1] = '\0';
 }
-
-
-// void updateStorageMode(MODE newMode) {
-//   Serial.print("Updating storage mode to: ");
-//   Serial.println((int)newMode);
-
-//   Preferences preferences;
-//   preferences.begin("thermostat", false); // namespace "thermostat", RW mode
-//   preferences.putInt("mode", static_cast<int>(newMode));
-//   preferences.end();
-// }
-
-// void updateStorageTempGoal(float newTempGoal) {
-//   Preferences preferences;
-//   preferences.begin("thermostat", false); // namespace "thermostat", RW mode
-//   preferences.putFloat("tempGoal", newTempGoal);
-//   preferences.end();
-// }
-
-// void updateStorageState(STATE newState) {
-//   Preferences preferences;
-//   preferences.begin("thermostat", false); // namespace "thermostat", RW mode
-//   preferences.putInt("state", static_cast<int>(newState));
-//   preferences.end();
-// }
-
-// void updateStorageHeavyState(STATE newHeavyState) {
-//   Preferences preferences;
-//   preferences.begin("thermostat", false); // namespace "thermostat", RW mode
-//   preferences.putInt("heavyState", static_cast<int>(newHeavyState));
-//   preferences.end();
-// }
-
-
-// MODE getStorageMode() {
-//   Preferences preferences;
-//   preferences.begin("thermostat", true); // namespace "thermostat", RO mode
-//   int storedMode = preferences.getInt("mode", static_cast<int>(MODE::Manual));
-//   preferences.end();
-
-//   Serial.print("Retrieved stored mode: ");
-//   Serial.println((int)storedMode);
-//   return static_cast<MODE>(storedMode);
-// }
-
-// float getStorageTempGoal() {
-//   Preferences preferences;
-//   preferences.begin("thermostat", true); // namespace "thermostat", RO mode
-
-//   // Default if not already set: 70
-//   float storedTempGoal = preferences.getFloat("tempGoal", 70.0);
-//   preferences.end();
-//   return storedTempGoal;
-// }
-
-// STATE getStorageState() {
-//   Preferences preferences;
-//   preferences.begin("thermostat", true); // namespace "thermostat", RO mode
-
-//   int storedState = preferences.getInt("state", static_cast<int>(STATE::Idle));
-//   preferences.end();
-//   return static_cast<STATE>(storedState);
-// }
-
-// STATE getStorageHeavyState() {
-//   Preferences preferences;
-//   preferences.begin("thermostat", true); // namespace "thermostat", RO mode
-
-//   int storedHeavyState = preferences.getInt("heavyState", static_cast<int>(STATE::Heat));
-//   preferences.end();
-//   return static_cast<STATE>(storedHeavyState);
-// }

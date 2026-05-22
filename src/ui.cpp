@@ -351,7 +351,7 @@ void UIinitializeTimer() {
         double remainingMin = (getResetTimeLimit() - timeSinceLastInteraction()) / 1000.0;
         if(remainingMin < 0) remainingMin = 0;
 
-        Serial.println(remainingMin);
+        // Serial.println(remainingMin);
 
         if(v == 0) {
             if (remainingMin / 60.0 >= 1.0) {

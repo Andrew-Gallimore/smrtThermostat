@@ -12,7 +12,6 @@ bool wifiCredentialsChanged = false;
 
 char deviceName[18] = "Gaming_Thermostat";
 char HAaddr[12] = "10.1.10.132";
-// char HAaddr[12] = "10.0.0.27";
 
 // Intializing HVAC object 
 HAHVAC hvac(

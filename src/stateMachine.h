@@ -1,11 +1,6 @@
 #ifndef STATE_MACHINE_H
 #define STATE_MACHINE_H
 
-#include <Arduino.h>
-#include "remoteThermostat.h"
-#include "storage.h"
-#include "locking.h"
-
 enum MODE {
   Off,
   Auto,
