@@ -381,6 +381,7 @@ void setup()
 
   UIinitializeSettings();
   UIinitializeNetwork();
+  UIinitializeThermometers();
 
 
 

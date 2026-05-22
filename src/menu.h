@@ -7,6 +7,7 @@
 #include "./icons/exit_30.h"
 #include "./icons/right_30.h"
 #include "./icons/wifi_30.h"
+#include "./icons/trash_30.h"
 #include "./icons/lock_36.h"
 #include "./icons/unlock_36.h"
 #include "./icons/settings_36.h"
@@ -16,6 +17,7 @@
 #include "./locking.h"
 #include "./remoteThermostat.h"
 #include "./colorHelper.h"
+#include "./thermometers.h"
 
 // Forward declarations for callback functions defined in main.cpp
 void onOFFButtonClick();
@@ -41,6 +43,10 @@ void UIhideSettings();
 void UIinitializeNetwork();
 void UIshowNetwork();
 void UIhideNetwork();
+
+void UIinitializeThermometers();
+void UIshowThermometers();
+void UIhideThermometers();
 
 
 

@@ -15,6 +15,7 @@ bool menuVisible = false;
 
 lv_obj_t* settingsPage = nullptr;
 lv_obj_t* settingsContent = nullptr;
+
 lv_obj_t* networkPage = nullptr;
 lv_obj_t* networkContent = nullptr;
 lv_obj_t* networkAvailableList = nullptr;
@@ -22,6 +23,11 @@ lv_anim_t networkAnim;
 lv_obj_t* currentNetworkLabel = nullptr;
 lv_obj_t* currentNetworkNameLabel = nullptr;
 lv_obj_t* currentNetworkSignalIcon = nullptr;
+
+lv_obj_t* thermometersPage = nullptr;
+lv_obj_t* thermometersContent = nullptr;
+lv_obj_t* thermometersLabel = nullptr;
+lv_obj_t* thermometersList = nullptr;
 
 
 void UIinitializeMenu() {
@@ -397,6 +403,7 @@ void settingsPageCreator(lv_obj_t* page, const char* title, lv_obj_t* content) {
             lv_event_code_t code = lv_event_get_code(e);
             if (code == LV_EVENT_CLICKED) {
                 UIhideNetwork();
+                UIhideThermometers();
                 UIshowSettings();
             }
         }, LV_EVENT_ALL, nullptr);
@@ -452,7 +459,7 @@ void UIinitializeSettings() {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
             UIhideSettings();
-            UIshowNetwork();
+            UIshowThermometers();
         }
     }, LV_EVENT_ALL, NULL);
 
@@ -778,4 +785,112 @@ void UIhideNetwork() {
     lv_obj_add_flag(networkPage, LV_OBJ_FLAG_HIDDEN);
 
     lv_anim_del(&networkAnim, nullptr);
+}
+
+
+
+const int thermBtnHeight    = 50;
+const int thermBtnTopMargin = 12;   // top margin before first button
+const int thermBtnSpacing   = 0;
+
+void UIpopulateThermometers() {
+    if (thermometersList) {
+        lv_obj_clean(thermometersList);
+    }
+
+    std::vector<SENSOR> sensors = getSensorList();
+
+    for(int i = 0; i < sensors.size(); i++) {
+        lv_obj_t* listItem = lv_obj_create(thermometersList);
+
+        // Creating list item
+        lv_obj_set_size(listItem, 456, thermBtnHeight);
+        lv_obj_align(listItem, LV_ALIGN_TOP_LEFT, 0, thermBtnTopMargin + ((thermBtnSpacing + networkBtnHeight) * i));
+        lv_obj_set_style_bg_opa(listItem, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(listItem, 0, LV_PART_MAIN);
+        lv_obj_set_style_outline_width(listItem, 0, LV_PART_MAIN);
+        lv_obj_set_style_shadow_opa(listItem, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_clear_flag(listItem, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollbar_mode(listItem, LV_SCROLLBAR_MODE_OFF);
+
+        lv_obj_t* label = lv_label_create(listItem);
+        lv_label_set_text(label, sensors[i].name);
+        lv_obj_align(label, LV_ALIGN_LEFT_MID, 12, 0);
+        lv_obj_set_size(label, 360, 24);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+        lv_obj_set_style_text_color(label, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
+        lv_obj_set_style_text_font(label, &chivo_mono_34, LV_PART_MAIN);
+
+        lv_obj_t* btn = lv_btn_create(listItem);
+        lv_obj_set_size(btn, thermBtnHeight - 2, thermBtnHeight - 2);
+        lv_obj_align(btn, LV_ALIGN_RIGHT_MID, -12, 0);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
+        lv_obj_set_style_outline_width(btn, 0, LV_PART_MAIN);
+        lv_obj_set_style_shadow_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
+        
+        lv_obj_t* icon = lv_img_create(btn);
+        lv_img_set_src(icon, &trash_30);
+        lv_obj_set_size(icon, 30, 30);
+        lv_obj_align(icon, LV_ALIGN_CENTER, 0, 0);
+
+        // Copying into static memory
+        char* nameCopy = strdup(sensors[i].name);
+        if (nameCopy == nullptr) {
+            nameCopy = strdup("");
+        }
+
+        lv_obj_add_event_cb(btn, [](lv_event_t* e) {
+            if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+
+            char* name = static_cast<char*>(lv_event_get_user_data(e));
+            lv_obj_t* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
+
+            removeSensor(name);
+            lv_obj_clean(thermometersList);
+            UIpopulateThermometers();
+            free(name);
+        }, LV_EVENT_CLICKED, nameCopy);
+    }
+}
+
+void UIinitializeThermometers() {
+    thermometersPage = lv_obj_create(lv_scr_act());
+    thermometersContent = lv_obj_create(thermometersPage);
+    settingsPageCreator(thermometersPage, "Thermometers", thermometersContent);
+
+    thermometersLabel = lv_label_create(thermometersContent);
+    lv_label_set_text(thermometersLabel, "Name:");
+    lv_obj_align(thermometersLabel, LV_ALIGN_TOP_LEFT, 30, 0);
+    lv_obj_set_size(thermometersLabel, 360, 24);
+    lv_obj_set_style_text_color(thermometersLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_font(thermometersLabel, &chivo_mono_34, LV_PART_MAIN);
+
+    // List of current thermometers
+    thermometersList = lv_obj_create(thermometersContent);
+    lv_obj_set_size(thermometersList, 456, 356);
+    lv_obj_align(thermometersList, LV_ALIGN_TOP_LEFT, 0, thermBtnTopMargin + ((thermBtnSpacing + thermBtnHeight) * 1));
+    lv_obj_set_style_bg_color(thermometersList, C_Background_Panel, LV_PART_MAIN);
+    lv_obj_set_style_border_width(thermometersList, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(thermometersList, 0, LV_PART_MAIN);
+    lv_obj_set_scrollbar_mode(thermometersList, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_dir(thermometersList, LV_DIR_NONE);
+
+    UIpopulateThermometers();
+}
+
+void UIshowThermometers() {
+    if (thermometersPage == nullptr) {
+        return;
+    }
+    
+    lv_obj_remove_flag(thermometersPage, LV_OBJ_FLAG_HIDDEN);
+}
+
+void UIhideThermometers() {
+    if (thermometersPage == nullptr) {
+        return;
+    }
+    
+    lv_obj_add_flag(thermometersPage, LV_OBJ_FLAG_HIDDEN);
 }
