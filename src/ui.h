@@ -74,6 +74,6 @@ void UIshowOnButton();
 void UIhideOnButton();
 
 // Helper function for button styling
-void UIapplyButtonStyle(lv_obj_t* btn);
+void UIapplyButtonStyle(lv_obj_t* btn, bool useLighterBg = false);
 
 #endif //UI_H

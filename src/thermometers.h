@@ -18,7 +18,7 @@ struct SENSOR {
 std::vector<SENSOR> getSensorList();
 
 void removeSensor(char* name);
-void addSensor(char* name);
+void addSensor(const char* name);
 
 void startBLESensorScan();
 

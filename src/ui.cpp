@@ -47,7 +47,7 @@ long int lastGoodTempTime = 0;
 int TEMP_ERROR_TIME = 60000; // 1 minute
 
 // Helper function for button styling
-void UIapplyButtonStyle(lv_obj_t* btn) {
+void UIapplyButtonStyle(lv_obj_t* btn, bool useLighterBg) {
     lv_obj_set_style_radius(btn, 10, LV_PART_MAIN);
     lv_obj_set_style_shadow_width(btn, 8, LV_PART_MAIN);
     lv_obj_set_style_shadow_ofs_y(btn, 3, LV_PART_MAIN);
@@ -57,8 +57,13 @@ void UIapplyButtonStyle(lv_obj_t* btn) {
     lv_obj_set_style_shadow_spread(btn, 1, LV_STATE_PRESSED | LV_PART_MAIN); 
     lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), LV_PART_MAIN);
     lv_obj_set_style_shadow_opa(btn, LV_OPA_50, LV_PART_MAIN); 
-    lv_obj_set_style_bg_color(btn, C_BTN_BG, LV_PART_MAIN); 
-    lv_obj_set_style_bg_color(btn, C_BTN_Highlight, LV_STATE_PRESSED | LV_PART_MAIN);
+    if(useLighterBg) {
+        lv_obj_set_style_bg_color(btn, C_BTN_BG_Lighter, LV_PART_MAIN); 
+        lv_obj_set_style_bg_color(btn, C_BTN_Highlight_Lighter, LV_STATE_PRESSED | LV_PART_MAIN);
+    }else {
+        lv_obj_set_style_bg_color(btn, C_BTN_BG, LV_PART_MAIN); 
+        lv_obj_set_style_bg_color(btn, C_BTN_Highlight, LV_STATE_PRESSED | LV_PART_MAIN);
+    }
     lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
 }
 

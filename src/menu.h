@@ -26,7 +26,7 @@ void onAutoButtonClick();
 void onLockButtonClick();
 
 // Forward delcaration for helper function in ui.cpp
-void UIapplyButtonStyle(lv_obj_t* btn);
+void UIapplyButtonStyle(lv_obj_t* btn, bool useLighterBg);
 
 
 // Regular declarations...

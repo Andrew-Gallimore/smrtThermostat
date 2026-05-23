@@ -28,6 +28,99 @@ lv_obj_t* thermometersPage = nullptr;
 lv_obj_t* thermometersContent = nullptr;
 lv_obj_t* thermometersLabel = nullptr;
 lv_obj_t* thermometersList = nullptr;
+lv_obj_t* thermometersAddBtn = nullptr;
+
+lv_obj_t* thermometersAddInput = nullptr;
+
+struct TextPopupContext {
+    lv_obj_t* popup;
+    lv_obj_t* textarea;
+    std::function<void(const char*)> callback;
+};
+
+static TextPopupContext* g_popupContext = nullptr;
+static void textPopupSubmitCallback(lv_event_t* e) {
+    const char* text = lv_textarea_get_text(g_popupContext->textarea);
+    if (!text) {
+        Serial.println("ERROR: text is null");
+        return;
+    }
+    
+    Serial.printf("Text from textarea: %s\n", text);
+    
+    // Copy the text to a static buffer
+    static char textBuffer[256] = {0};
+    memset(textBuffer, 0, sizeof(textBuffer));
+    strncpy(textBuffer, text, sizeof(textBuffer) - 1);
+    
+    auto savedCallback = g_popupContext->callback;
+    lv_obj_del(g_popupContext->popup);
+    delete g_popupContext;
+    g_popupContext = nullptr;
+
+    // Calling the callback
+    savedCallback(textBuffer);
+}
+
+void createTextPopup(char* label, char* placeholder, std::function<void(const char*)> onSubmit) {
+    lv_obj_t* popupBox = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(popupBox, 480, 480);
+    lv_obj_align(popupBox, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(popupBox, C_Background, LV_PART_MAIN);
+    lv_obj_set_style_border_width(popupBox, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(popupBox, 0, LV_PART_MAIN);
+    lv_obj_set_scrollbar_mode(popupBox, LV_SCROLLBAR_MODE_OFF);
+
+    // Create close button (top right of panel)
+    lv_obj_t* closeButton = lv_btn_create(popupBox);
+    lv_obj_align(closeButton, LV_ALIGN_TOP_RIGHT, -24, 24);
+    lv_obj_set_size(closeButton, 60, 60);
+    UIapplyButtonStyle(closeButton, true);
+
+    lv_obj_t* closeIcon = lv_img_create(closeButton);
+    lv_img_set_src(closeIcon, &exit_30);
+    lv_obj_set_size(closeIcon, 30, 30);
+    lv_obj_center(closeIcon);
+
+    lv_obj_add_event_cb(closeButton, [](lv_event_t* e) {
+        lv_event_code_t code = lv_event_get_code(e);
+        if (code == LV_EVENT_CLICKED) {
+            lv_obj_del(g_popupContext->popup);
+            delete g_popupContext;
+            g_popupContext = nullptr;
+        }
+    }, LV_EVENT_ALL, nullptr);
+
+
+
+    lv_obj_t* textLabel = lv_label_create(popupBox);
+    lv_label_set_text(textLabel, label);
+    lv_obj_set_style_text_color(textLabel, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
+    lv_obj_set_style_text_font(textLabel, &chivo_mono_34, LV_PART_MAIN);
+    lv_obj_align(textLabel, LV_ALIGN_TOP_LEFT, 40, 100);
+
+    lv_obj_t* textArea = lv_textarea_create(popupBox);
+    lv_obj_set_size(textArea, 400, 56);
+    lv_obj_align(textArea, LV_ALIGN_TOP_LEFT, 40, 140);
+    lv_textarea_set_placeholder_text(textArea, placeholder);
+    lv_textarea_set_one_line(textArea, true);
+    lv_obj_set_style_text_font(textArea, &chivo_mono_34, LV_PART_MAIN);
+    lv_obj_set_style_text_color(textArea, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(textArea, C_BTN_BG, LV_PART_MAIN);
+    lv_obj_set_style_border_width(textArea, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(textArea, 12, LV_PART_MAIN);
+
+
+
+    lv_obj_t* keyboard = lv_keyboard_create(popupBox);
+    lv_keyboard_set_textarea(keyboard, textArea);
+    lv_obj_align(keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
+
+    g_popupContext = new TextPopupContext{popupBox, textArea, onSubmit};
+    lv_obj_add_event_cb(keyboard, textPopupSubmitCallback, LV_EVENT_READY, nullptr);
+}
+
+
 
 
 void UIinitializeMenu() {
@@ -383,7 +476,7 @@ void settingsPageCreator(lv_obj_t* page, const char* title, lv_obj_t* content) {
     lv_obj_t* pageCloseButton = lv_btn_create(page);
     lv_obj_align(pageCloseButton, LV_ALIGN_TOP_RIGHT, -12, 12);
     lv_obj_set_size(pageCloseButton, 60, 60);
-    UIapplyButtonStyle(pageCloseButton);
+    UIapplyButtonStyle(pageCloseButton, true);
 
     lv_obj_t* closeIcon = lv_img_create(pageCloseButton);
     lv_img_set_src(closeIcon, &exit_30);
@@ -542,7 +635,7 @@ void UIinitializeSettings() {
 
     // Reset button
     lv_obj_t *restartButton = lv_btn_create(settingsContent);
-    lv_obj_set_size(restartButton, 100, 50);
+    lv_obj_set_size(restartButton, 100, 55);
     lv_obj_align(restartButton, LV_ALIGN_TOP_LEFT, 28, 6 + btnTopMargin + ((btnSpacing + btnHeight) * 4));
     UIapplyButtonStyle(restartButton);
     lv_obj_set_style_bg_color(restartButton, C_Red, LV_PART_MAIN);
@@ -859,6 +952,10 @@ void UIinitializeThermometers() {
     thermometersContent = lv_obj_create(thermometersPage);
     settingsPageCreator(thermometersPage, "Thermometers", thermometersContent);
 
+    // Make the parent container non-scrollable
+    lv_obj_set_scrollbar_mode(thermometersContent, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_dir(thermometersContent, LV_DIR_NONE);
+
     thermometersLabel = lv_label_create(thermometersContent);
     lv_label_set_text(thermometersLabel, "Name:");
     lv_obj_align(thermometersLabel, LV_ALIGN_TOP_LEFT, 30, 0);
@@ -866,18 +963,45 @@ void UIinitializeThermometers() {
     lv_obj_set_style_text_color(thermometersLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_text_font(thermometersLabel, &chivo_mono_34, LV_PART_MAIN);
 
-    // List of current thermometers
+    // List of current thermometers (which is scrollable)
     thermometersList = lv_obj_create(thermometersContent);
-    lv_obj_set_size(thermometersList, 456, 356);
+    lv_obj_set_size(thermometersList, 456, 300);  // Reduced height to leave room for button
     lv_obj_align(thermometersList, LV_ALIGN_TOP_LEFT, 0, thermBtnTopMargin + ((thermBtnSpacing + thermBtnHeight) * 1));
     lv_obj_set_style_bg_color(thermometersList, C_Background_Panel, LV_PART_MAIN);
     lv_obj_set_style_border_width(thermometersList, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(thermometersList, 0, LV_PART_MAIN);
-    lv_obj_set_scrollbar_mode(thermometersList, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_scroll_dir(thermometersList, LV_DIR_NONE);
+    
+    // Enable scrolling ONLY on this list
+    lv_obj_set_scrollbar_mode(thermometersList, LV_SCROLLBAR_MODE_AUTO);
+    lv_obj_set_scroll_dir(thermometersList, LV_DIR_VER);
+    lv_obj_set_flex_flow(thermometersList, LV_FLEX_FLOW_COLUMN);  // Stack items vertically
 
     UIpopulateThermometers();
+
+    // Add thermometer button
+    thermometersAddBtn = lv_btn_create(thermometersContent);
+    lv_obj_set_size(thermometersAddBtn, 280, 55);
+    lv_obj_align(thermometersAddBtn, LV_ALIGN_BOTTOM_RIGHT, -24, -24);
+    UIapplyButtonStyle(thermometersAddBtn, true);
+
+    lv_obj_t* addMessage = lv_label_create(thermometersAddBtn);
+    lv_label_set_text(addMessage, "Add therm.");
+    lv_obj_set_style_text_color(addMessage, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
+    lv_obj_set_style_text_font(addMessage, &chivo_mono_34, LV_PART_MAIN);
+    lv_obj_center(addMessage);
+
+    lv_obj_add_event_cb(thermometersAddBtn, [](lv_event_t* e) {
+        if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+
+        createTextPopup("Thermometer name", "Enter name...", [](const char* name) {
+            if (strlen(name) > 0) {
+                addSensor(name);
+                UIpopulateThermometers();
+            }
+        });
+    }, LV_EVENT_CLICKED, nullptr);
 }
+
 
 void UIshowThermometers() {
     if (thermometersPage == nullptr) {
