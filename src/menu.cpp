@@ -62,7 +62,7 @@ static void textPopupSubmitCallback(lv_event_t* e) {
     savedCallback(textBuffer);
 }
 
-void createTextPopup(char* label, char* placeholder, std::function<void(const char*)> onSubmit) {
+void createTextPopup(const char* label, const char* placeholder, std::function<void(const char*)> onSubmit) {
     lv_obj_t* popupBox = lv_obj_create(lv_scr_act());
     lv_obj_set_size(popupBox, 480, 480);
     lv_obj_align(popupBox, LV_ALIGN_CENTER, 0, 0);
