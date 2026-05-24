@@ -504,6 +504,12 @@ void UIinitializeMenu() {
                 lv_img_set_src(btn5_icon, &lock_36);
                 // Setting settings icon to be half transparent if locked
                 lv_obj_set_style_opa(menu_settings_icon, LV_OPA_20, LV_PART_MAIN);
+                
+                // Restoring timer if we are in a correct state
+                STATE state = getCurrentState();
+                if(state != STATE::Idle) {
+                    UIshowTimer();
+                }
                 return;
             }
 
@@ -516,6 +522,9 @@ void UIinitializeMenu() {
                     lv_img_set_src(btn5_icon, &unlock_36);
                     // Setting settings icon to be full opacity if unlocked
                     lv_obj_set_style_opa(menu_settings_icon, LV_OPA_100, LV_PART_MAIN);
+
+                    // Hiding timer since we are unlocked
+                    UIhideTimer();
                 }
             });
         }

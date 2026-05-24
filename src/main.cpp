@@ -186,7 +186,6 @@ void onManualFanClick() {
 void onOFFButtonClick() {
   printf("Off button selected\n");
   UIhideDelay();
-  UIhideTimer();
   UIhideUnlock();
   UIhideCool();
   UIhideHeat();
@@ -205,18 +204,15 @@ void onOFFButtonClick() {
   setLastMode(getCurrentMode());
   setCurrentMode(MODE::Off);
   setRelaysFromState(STATE::Idle);
+
+  // Has to happen after state changes, otherwise the state machine might switch it back on immediately
+  UIhideTimer();
 }
 
 void onONButtonClick() {
   printf("On button selected\n");
   UItempErrorCheck();
   UIshowMenuButton();
-  
-  // Restoring delay message
-  STATE state = getCurrentState();
-  if(state == STATE::AwaitingCool || state == STATE::AwaitingHeat) {
-    UIshowDelay();
-  }
 
   // Restoring unlocked icon
   if(isUnlocked()) {
@@ -232,6 +228,12 @@ void onONButtonClick() {
   } else if(lastMode == MODE::Off) {
     // If last mode was Off, we set it to Auto
     onAutoButtonClick();
+  }
+
+  // Restoring delay message
+  STATE state = getCurrentState();
+  if(state == STATE::AwaitingCool || state == STATE::AwaitingHeat) {
+    UIshowDelay();
   }
 }
 
