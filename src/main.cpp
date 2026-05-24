@@ -193,6 +193,7 @@ void onOFFButtonClick() {
   UIhideAutoBTNs();
   UIhideManualBTNs();
   UIhideMenuButton();
+  UIhideMenu();
 
   UIgoalSet("Off");
   UIshowOnButton();

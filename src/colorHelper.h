@@ -21,4 +21,7 @@ inline lv_color_t fix_color(int8_t r, int8_t g, int8_t b) {
 #define C_Blue                  fix_color(50 ,20 ,210)
 #define C_Teal                  fix_color(20 ,210,230)
 
+LV_FONT_DECLARE(chivo_mono_34);
+static lv_font_t chivo_mono_34_fb;
+
 #endif // COLOR_HELPER_H

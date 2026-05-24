@@ -10,6 +10,7 @@ lv_obj_t* menuButton2 = nullptr;
 lv_obj_t* menuButton3 = nullptr;
 lv_obj_t* menuButton4 = nullptr;
 lv_obj_t* menuButton5 = nullptr;
+lv_obj_t* menu_settings_icon = nullptr;
 lv_obj_t* btn5_icon = nullptr;
 bool menuVisible = false;
 
@@ -120,6 +121,128 @@ void createTextPopup(const char* label, const char* placeholder, std::function<v
     lv_obj_add_event_cb(keyboard, textPopupSubmitCallback, LV_EVENT_READY, nullptr);
 }
 
+struct CodePopupContext {
+    lv_obj_t* popup;
+    lv_obj_t* textarea;
+    std::function<void(int, int, int, int)> callback;
+};
+
+static CodePopupContext* c_popupContext = nullptr;
+static void codePopupSubmitCallback(lv_event_t* e) {
+    Serial.println("Code popup submit callback triggered");
+    const char* text = lv_textarea_get_text(c_popupContext->textarea);
+    if (!text) {
+        Serial.println("ERROR: text is null");
+        return;
+    }
+    
+    Serial.printf("Text from textarea: %s\n", text);
+    
+    // Copy the text to a static buffer
+    static char textBuffer[256] = {0};
+    memset(textBuffer, 0, sizeof(textBuffer));
+    strncpy(textBuffer, text, sizeof(textBuffer) - 1);
+
+    // Turning text into 4 integers
+    int val1 = 0, val2 = 0, val3 = 0, val4 = 0;
+    sscanf(textBuffer, "%1d%1d%1d%1d", &val1, &val2, &val3, &val4);
+    Serial.printf("Parsed values: %d %d %d %d\n", val1, val2, val3, val4);
+    
+    auto savedCallback = c_popupContext->callback;
+    lv_obj_del(c_popupContext->popup);
+    delete c_popupContext;
+    c_popupContext = nullptr;
+
+    // Calling the callback
+    savedCallback(val1, val2, val3, val4);
+}
+
+void createCodePopup(std::function<void(int, int, int, int)> onSubmit) {
+    // Similar to createTextPopup but with 4 text areas for code input
+    // and a submit button that calls onSubmit with the 4 code values
+
+    lv_obj_t* popupBox = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(popupBox, 480, 480);
+    lv_obj_align(popupBox, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(popupBox, C_Background, LV_PART_MAIN);
+    lv_obj_set_style_border_width(popupBox, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(popupBox, 0, LV_PART_MAIN);
+    lv_obj_set_scrollbar_mode(popupBox, LV_SCROLLBAR_MODE_OFF);
+
+    lv_obj_t* titleLabel = lv_label_create(popupBox);
+    lv_label_set_text(titleLabel, "Unlock");
+    lv_obj_align(titleLabel, LV_ALIGN_TOP_MID, 0, 27);
+    lv_obj_set_style_text_color(titleLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_text_font(titleLabel, &chivo_mono_34, LV_PART_MAIN);
+
+    // Create close button (top right of panel)
+    lv_obj_t* closeButton = lv_btn_create(popupBox);
+    lv_obj_align(closeButton, LV_ALIGN_TOP_RIGHT, -24, 24);
+    lv_obj_set_size(closeButton, 60, 60);
+    UIapplyButtonStyle(closeButton, true);
+
+    lv_obj_t* closeIcon = lv_img_create(closeButton);
+    lv_img_set_src(closeIcon, &exit_30);
+    lv_obj_set_size(closeIcon, 30, 30);
+    lv_obj_center(closeIcon);
+
+    lv_obj_add_event_cb(closeButton, [](lv_event_t* e) {
+        lv_event_code_t code = lv_event_get_code(e);
+        if (code == LV_EVENT_CLICKED) {
+            lv_obj_del(c_popupContext->popup);
+            delete c_popupContext;
+            c_popupContext = nullptr;
+        }
+    }, LV_EVENT_ALL, nullptr);
+
+
+
+    lv_obj_t* textArea = lv_textarea_create(popupBox);
+    lv_obj_set_size(textArea, 400, 56);
+    lv_obj_align(textArea, LV_ALIGN_TOP_LEFT, 40, 140);
+    lv_textarea_set_one_line(textArea, true);
+    lv_textarea_set_max_length(textArea, 4);
+    lv_obj_set_style_text_font(textArea, &chivo_mono_34, LV_PART_MAIN);
+    lv_obj_set_style_text_color(textArea, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(textArea, C_BTN_BG, LV_PART_MAIN);
+    lv_obj_set_style_border_width(textArea, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(textArea, 12, LV_PART_MAIN);
+
+
+    static const char * kb_map[] = {
+        "1", "2", "3", "0", "\n",
+        "4", "5", "6", LV_SYMBOL_BACKSPACE, "\n",
+        "7", "8", "9", LV_SYMBOL_OK, NULL
+    };
+
+    /* Set relative button widths (all buttons same width) */
+    static const lv_buttonmatrix_ctrl_t kb_ctrl[] = {
+        LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG,           /* Row 1: 1 2 3 4 */
+        LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG,           /* Row 2: 5 6 7 8 */
+        LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG, LV_BUTTONMATRIX_CTRL_CLICK_TRIG            /* Row 3: 9 0 [x] [✓] */
+    };
+
+    lv_obj_t* keyboard = lv_keyboard_create(popupBox);
+    lv_keyboard_set_textarea(keyboard, textArea);
+    lv_keyboard_set_map(keyboard, LV_KEYBOARD_MODE_USER_1, kb_map, kb_ctrl);
+    lv_keyboard_set_mode(keyboard, LV_KEYBOARD_MODE_USER_1);
+    lv_obj_set_style_bg_color(keyboard, C_Background, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(keyboard, C_BTN_BG, LV_PART_ITEMS);
+    // lv_obj_set_style_text_font(keyboard, &chivo_mono_34, LV_PART_MAIN);
+    
+    chivo_mono_34_fb = chivo_mono_34;   // copy
+    chivo_mono_34_fb.fallback = LV_FONT_DEFAULT;
+    lv_obj_set_style_text_font(
+        keyboard,
+        &chivo_mono_34_fb,
+        LV_PART_ITEMS
+    );
+    lv_obj_set_style_text_color(keyboard, lv_color_hex(0xFFFFFF), LV_PART_ITEMS);
+    lv_obj_align(keyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
+
+    c_popupContext = new CodePopupContext{popupBox, textArea, onSubmit};
+    lv_obj_add_event_cb(keyboard, codePopupSubmitCallback, LV_EVENT_READY, nullptr);
+}
 
 
 
@@ -299,10 +422,10 @@ void UIinitializeMenu() {
     UIapplyButtonStyle(menuButton3);
     
     // Create icon for menuButton5
-    lv_obj_t* btn3_icon = lv_img_create(menuButton3);
-    lv_img_set_src(btn3_icon, &settings_36);
-    lv_obj_set_size(btn3_icon, 36, 36);
-    lv_obj_center(btn3_icon);
+    menu_settings_icon = lv_img_create(menuButton3);
+    lv_img_set_src(menu_settings_icon, &settings_36);
+    lv_obj_set_size(menu_settings_icon, 36, 36);
+    lv_obj_center(menu_settings_icon);
 
 
 
@@ -353,8 +476,10 @@ void UIinitializeMenu() {
     lv_obj_add_event_cb(menuButton3, [](lv_event_t* e) {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
-            UIshowSettings();
-            UIhideMenu();
+            if(isUnlocked()) {
+                UIshowSettings();
+                UIhideMenu();
+            }            
         }
     }, LV_EVENT_ALL, nullptr);
 
@@ -370,15 +495,29 @@ void UIinitializeMenu() {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
 
-            bool passed = lockTest();
+            if(isUnlocked()) {
+                // Locking the system
+                lockSystem();
 
-            if(passed) {
-                UIshowUnlock();
-                lv_img_set_src(btn5_icon, &unlock_36);
-            }else {
+                // Showing the locking change
                 UIhideUnlock();
                 lv_img_set_src(btn5_icon, &lock_36);
+                // Setting settings icon to be half transparent if locked
+                lv_obj_set_style_opa(menu_settings_icon, LV_OPA_20, LV_PART_MAIN);
+                return;
             }
+
+            // Else, show a popup to enter the 4 digit code
+            createCodePopup([](int val1, int val2, int val3, int val4) {
+                bool passed = unlockTest(val1, val2, val3, val4);
+
+                if(passed) {
+                    UIshowUnlock();
+                    lv_img_set_src(btn5_icon, &unlock_36);
+                    // Setting settings icon to be full opacity if unlocked
+                    lv_obj_set_style_opa(menu_settings_icon, LV_OPA_100, LV_PART_MAIN);
+                }
+            });
         }
     }, LV_EVENT_ALL, nullptr);
 }
@@ -429,8 +568,12 @@ void UIshowMenu() {
 
     if(isUnlocked()) {
         lv_img_set_src(btn5_icon, &unlock_36);
+        // Setting settings icon to be full opacity if unlocked
+        lv_obj_set_style_opa(menu_settings_icon, LV_OPA_100, LV_PART_MAIN);
     } else {
         lv_img_set_src(btn5_icon, &lock_36);
+        // Setting settings icon to be half transparent if locked
+        lv_obj_set_style_opa(menu_settings_icon, LV_OPA_20, LV_PART_MAIN);
     }
 
     MODE currentMode = getCurrentMode();

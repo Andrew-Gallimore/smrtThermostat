@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <vector>
 #include <string>
+#include <Arduino.h>
 
 // Forward declaration for main.cpp
 void onNewTempReading(float temp);
@@ -23,7 +24,7 @@ struct SENSOR {
 std::vector<SENSOR> getSensorList();
 
 void removeSensor(char* name);
-void addSensor(const char* name);
+void addSensor(const char* name, bool silentAdd = false);
 
 void startBLESensorScan();
 

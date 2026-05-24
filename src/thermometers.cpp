@@ -52,7 +52,7 @@ void removeSensor(char* name) {
     storeThermometerList(thermometerNames);
 }
 
-void addSensor(const char* name) {
+void addSensor(const char* name, bool silentAdd) {
     SENSOR newSensor;
     strncpy(newSensor.name, name, sizeof(newSensor.name) - 1);
     newSensor.name[sizeof(newSensor.name) - 1] = '\0';
@@ -61,12 +61,14 @@ void addSensor(const char* name) {
     newSensor.rssi = 0;
     sensors.push_back(newSensor);
 
-    // Store updated thermometer list
-    std::vector<String> thermometerNames;
-    for (const auto& sensor : sensors) {
-        thermometerNames.push_back(String(sensor.name));
+    if(!silentAdd) {
+        // Store updated thermometer list
+        std::vector<String> thermometerNames;
+        for (const auto& sensor : sensors) {
+            thermometerNames.push_back(String(sensor.name));
+        }
+        storeThermometerList(thermometerNames);
     }
-    storeThermometerList(thermometerNames);
 }
 
 
@@ -151,7 +153,7 @@ void startBLESensorScan() {
     std::vector<String> thermometerNames;
     getStoredThermometerList(thermometerNames);
     for (const auto& name : thermometerNames) {
-        addSensor(name.c_str());
+        addSensor(name.c_str(), true);
     }
 
     Serial.printf("Initialized %d sensors from storage\n", (int)sensors.size());
