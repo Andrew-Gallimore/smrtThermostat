@@ -322,12 +322,19 @@ void setup()
 
   // Set up ESP-NOW first (this will set the WiFi channel)
   // makeThermostatConnection();
-  startBLESensorScan();
 
+  // initializeStorage();
+  
+  // delay(4000);
+  
+  // NOTE: Needs to happen before initializing storage
+  //    because I think it messes with SPI stuff
   setupDisplay();
-
   
   initializeStorage();
+
+  // This starts the BLE scan task for thermometers
+  startBLESensorScan();
   
   setupMQTT();
 

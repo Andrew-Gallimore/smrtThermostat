@@ -4,9 +4,14 @@
 #include <NimBLEDevice.h>
 #include <Wire.h>
 #include <vector>
+#include <string>
 
-// Forward declaration
+// Forward declaration for main.cpp
 void onNewTempReading(float temp);
+
+// Forward declaration for storage.cpp
+void getStoredThermometerList(std::vector<String>& thermometerNames);
+void storeThermometerList(const std::vector<String>& thermometerNames);
 
 struct SENSOR {
     char name[32];

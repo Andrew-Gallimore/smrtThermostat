@@ -11,10 +11,11 @@ bool myMacFound = false;
 bool sdCardInitialized = false;
 bool variablesLoaded = false;
 bool networkConfigLoaded = false;
+bool thermometersConfigLoaded = false;
 TaskHandle_t storeVariablesTaskHandle = NULL;
 
 // State stored variables
-unsigned long lastStorageTime   = -1;
+unsigned long lastStorageTime   = 0;
 bool  updatedStates             = false;
 float storage_temp              = 70;
 float storage_tempGoal          = 70;
@@ -30,6 +31,12 @@ MODE storage_lastMode    = MODE::Auto;
 bool updatedNetwork           = false;
 char storage_networkSSID[256] = "";
 char storage_networkPWD[256]  = "";
+
+// Thermometers stored variables
+bool updatedThermometers = false;
+std::vector<String> storage_thermometers = {};
+
+SemaphoreHandle_t sdMutex;
 
 
 PEERTYPE whoAmI() {
@@ -54,102 +61,79 @@ PEERTYPE whoAmI() {
 #define SPI_MOSI  47   // SPI Data (MOSI)
 #define SPI_MISO  41   // SPI Data (MISO)
 
-void initializeStorage() {
-    if(!DO_SD_CARD) {
-        return;
-    }
+SPIClass sdSPI(FSPI);
 
-    // Create task to store variables periodically
-    xTaskCreatePinnedToCore(
-        storeVariablesTask,       // Task function
-        "StoreVariablesTask",     // Name of the task
-        4096,                     // Stack size (in bytes)
-        NULL,                     // Task input parameter
-        1,                        // Priority
-        &storeVariablesTaskHandle,// Task handle
-        1                         // Core 1
-    );
-
-    initSDCard();
-}
-
-void initSDCard() {
-    if(!DO_SD_CARD) {
-        sdCardInitialized = false;
-        return;
-    }
-
-    SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
-
-    if (!SD.begin(SD_CS)) {
-        Serial.println("SD Card failed or not present");
-        sdCardInitialized = false;
-        return;
-    }
-    sdCardInitialized = true;
-    Serial.println("SD Card initialized");
-}
 
 void writeFile(const char* filename, const char* data) {
-    if(!DO_SD_CARD) {
-        return;
-    }
+  if (!DO_SD_CARD || !sdCardInitialized) {
+    return;
+  }
 
-    if (!sdCardInitialized) {
-        // Try to reinitialize in case card was plugged in
-        initSDCard();
-        if (!sdCardInitialized) {
-            Serial.printf("SD Card not available, cannot write to %s\n", filename);
-            return;
-        }
-    }
+  if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
 
     File dataFile = SD.open(filename, FILE_WRITE);
+
     if (dataFile) {
-        dataFile.println(data);
-        dataFile.close();
-        Serial.printf("Data written to %s\n", filename);
+      dataFile.seek(0);
+      dataFile.print(data);
+      dataFile.flush();
+      dataFile.close();
+
+      Serial.printf("Data written to %s\n", filename);
     } else {
-        Serial.printf("Error opening %s for writing\n", filename);
-        sdCardInitialized = false;  // Mark as failed in case card was removed
+      Serial.printf("Error opening %s for writing\n", filename);
     }
+
+    xSemaphoreGive(sdMutex);
+  }
 }
 
 void readFile(const char* filename, void (*parserCallback)(const char*)) {
-    if(!DO_SD_CARD) {
-        return;
+  if (!DO_SD_CARD) {
+    return;
+  }
+
+  if (!sdCardInitialized) {
+    Serial.printf("SD Card not available, cannot read from %s\n", filename);
+    return;
+  }
+
+  if (!SD.exists(filename)) {
+    Serial.printf("%s does not exist\n", filename);
+    return;
+  }
+
+  if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
+
+    File dataFile = SD.open(filename, FILE_READ);
+
+    if (!dataFile) {
+      Serial.printf("Failed to open %s\n", filename);
+      return;
     }
 
-    if (!sdCardInitialized) {
-        // Try to reinitialize in case card was plugged in
-        initSDCard();
-        if (!sdCardInitialized) {
-            Serial.printf("SD Card not available, cannot read from %s\n", filename);
-            return;
-        }
-    }
+    char buffer[256] = {0};
+    while (dataFile.available()) {
+      size_t len = dataFile.readBytesUntil(
+        '\n',
+        buffer,
+        sizeof(buffer) - 1
+      );
 
-    char buffer[256];
-    buffer[0] = '\0';
-
-    File dataFile = SD.open(filename);
-    if (dataFile) {
-        while (dataFile.available()) {
-            size_t len = dataFile.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
-            buffer[len] = '\0'; // Null-terminate the string
-        }
-        dataFile.close();
-    } else {
-        Serial.printf("Error opening %s for reading\n", filename);
-        sdCardInitialized = false;  // Mark as failed in case card was removed
+      buffer[len] = '\0';
     }
+    dataFile.close();
+
+    xSemaphoreGive(sdMutex);
 
     parserCallback(buffer);
+  }
 }
 
 void storeVariablesTask(void* parameter) {
   vTaskDelay(1000 / portTICK_PERIOD_MS);
   while (true) {
+    // Writing to temp.txt
     if (updatedStates) {
       lastStorageTime = millis();
 
@@ -168,6 +152,7 @@ void storeVariablesTask(void* parameter) {
       updatedStates = false;
     }
 
+    // Writing to network.txt
     if (updatedNetwork) {
       char dataBuffer[256*2];
       snprintf(dataBuffer, sizeof(dataBuffer), "%s,%s",
@@ -177,9 +162,24 @@ void storeVariablesTask(void* parameter) {
       updatedNetwork = false;
     }
 
+    // Writing to thermometers.txt
+    if (updatedThermometers) {
+      // 10 means we can store up to 10 thermometers, adjust as needed
+      char dataBuffer[10*32];
+      dataBuffer[0] = '\0';
+
+      for(size_t i = 0; i < storage_thermometers.size() && i < 10; ++i) {
+        strncat(dataBuffer, storage_thermometers[i].c_str(), sizeof(dataBuffer) - strlen(dataBuffer) - 1);
+        strncat(dataBuffer, "\n", sizeof(dataBuffer) - strlen(dataBuffer) - 1);
+      }
+      writeFile("/thermometers.txt", dataBuffer);
+      updatedThermometers = false;
+    }
+
     vTaskDelay(10000 / portTICK_PERIOD_MS); // Check every 10 seconds
   }
 }
+
 
 void readStates() {
   readFile("/temp.txt", [](const char* data) {
@@ -224,6 +224,74 @@ void readNetworkConfig() {
       }
   });
 }
+
+void readThermometerConfig() {
+  storage_thermometers.clear();
+
+  File file = SD.open("/thermometers.txt");
+  if (!file) {
+      return;
+  }
+  while (file.available()) {
+    String line = file.readStringUntil('\n');
+    line.trim();
+
+    if (line.length() > 0) {
+      storage_thermometers.push_back(line);
+    }
+  }
+  file.close();
+
+  thermometersConfigLoaded = true;
+}
+
+
+void initSDCard() {
+    if(!DO_SD_CARD) {
+        sdCardInitialized = false;
+        return;
+    }
+
+    sdSPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
+
+    if (!SD.begin(SD_CS, sdSPI)) {
+        Serial.println("SD Card failed or not present");
+        sdCardInitialized = false;
+        return;
+    }
+    sdCardInitialized = true;
+    Serial.println("SD Card initialized");
+}
+void initializeStorage() {
+    if(!DO_SD_CARD) {
+        return;
+    }
+    sdMutex = xSemaphoreCreateMutex();
+
+    initSDCard();
+
+    if(sdCardInitialized) {
+        Serial.println("Reading stored variables...");
+        readStates();
+        readNetworkConfig();
+        readThermometerConfig();
+    } else {
+        Serial.println("SD Card not initialized, skipping reading stored variables");
+    }
+
+    // Create task to store variables periodically
+    xTaskCreatePinnedToCore(
+        storeVariablesTask,       // Task function
+        "StoreVariablesTask",     // Name of the task
+        4096,                     // Stack size (in bytes)
+        NULL,                     // Task input parameter
+        1,                        // Priority
+        &storeVariablesTaskHandle,// Task handle
+        1                         // Core 1
+    );
+}
+
+
 
 // Setters
 void storeTemp(float newTemp) {
@@ -285,7 +353,6 @@ void storeNetworkSSID(char* SSID) {
   storage_networkSSID[sizeof(storage_networkSSID) - 1] = '\0';
   updatedNetwork = true;
 }
-
 void storeNetworkPWD(char* password) {
   if (password == nullptr) password = (char*)"";
 
@@ -294,90 +361,63 @@ void storeNetworkPWD(char* password) {
   updatedNetwork = true;
 }
 
+void storeThermometerList(const std::vector<String>& thermometerNames) {
+  storage_thermometers = thermometerNames;
+  updatedThermometers = true;
+}
+
+
+
 // Getters
 unsigned long getStoredTimestamp() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return lastStorageTime;
 }
 
 float getStoredTemp() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return storage_temp;
 }
 float getStoredTempGoal() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return storage_tempGoal;
 }
 
 STATE getStoredState() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return storage_state;
 }
 STATE getStoredLastState() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return storage_lastState;
 }
 STATE getStoredLastHeavyState() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return storage_lastHeavyState;
 }
 
 MODE getStoredMode() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return storage_mode;
 }
 MODE getStoredLastMode() {
-  if(!variablesLoaded) {
-    // Try to read from file
-    readStates();
-  }
   return storage_lastMode;
 }
 
 void getStoredNetworkSSID(char* SSIDBuffer, size_t bufSize) {
   if (SSIDBuffer == nullptr || bufSize == 0) return;
-  if(!networkConfigLoaded) {
-    // Try to read from file
-    readNetworkConfig();
-  }
+
   if (storage_networkSSID[0] == '\0') {
-      SSIDBuffer[0] = '\0';
-      return;
+    SSIDBuffer[0] = '\0';
+    return;
   }
   strncpy(SSIDBuffer, storage_networkSSID, bufSize - 1);
   SSIDBuffer[bufSize - 1] = '\0';
 }
 void getStoredNetworkPWD(char* PWDBuffer, size_t bufSize) {
   if (PWDBuffer == nullptr || bufSize == 0) return;
-  if(!networkConfigLoaded) {
-    // Try to read from file
-    readNetworkConfig();
-  }
+
   if (storage_networkPWD[0] == '\0') {
-      PWDBuffer[0] = '\0';
-      return;
+    PWDBuffer[0] = '\0';
+    return;
   }
   strncpy(PWDBuffer, storage_networkPWD, bufSize - 1);
   PWDBuffer[bufSize - 1] = '\0';
+}
+
+void getStoredThermometerList(std::vector<String>& thermometerNames) {
+    thermometerNames = storage_thermometers;
 }

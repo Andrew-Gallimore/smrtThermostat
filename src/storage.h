@@ -3,7 +3,10 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <vector>
+#include <string>
 #include "stateMachine.h"
+// #include "thermometers.h"
 
 #define GPIO_RELAY1  40
 #define GPIO_RELAY2  2
@@ -53,6 +56,8 @@ void storeLastMode(MODE newLastMode);
 void storeNetworkSSID(char* SSID);
 void storeNetworkPWD(char* PWD);
 
+void storeThermometerList(const std::vector<std::string>& thermometerNames);
+
 // Getters
 unsigned long getStoredTimestamp();
 float getStoredTemp();
@@ -67,6 +72,8 @@ MODE getStoredLastMode();
 
 void getStoredNetworkSSID(char* SSIDBuffer, size_t bufSize);
 void getStoredNetworkPWD(char* PWDBuffer, size_t bufSize);
+
+void getStoredThermometerList(std::vector<std::string>& thermometerNames);
 
 
 #endif // STORAGE_H

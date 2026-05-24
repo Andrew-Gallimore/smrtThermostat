@@ -1,40 +1,40 @@
 #include "./thermometers.h"
 
-std::vector<SENSOR> initSensors() {
-    std::vector<SENSOR> v;
-    SENSOR s;
+// std::vector<SENSOR> initSensors() {
+//     std::vector<SENSOR> v;
+//     SENSOR s;
 
-    strncpy(s.name, "ATC_8A7083", sizeof(s.name) - 1);
-    s.name[sizeof(s.name) - 1] = '\0';
-    s.temp = -1.0;
-    s.lastUpdateTime = -10000;
-    s.rssi = 0;
-    v.push_back(s);
+//     strncpy(s.name, "ATC_8A7083", sizeof(s.name) - 1);
+//     s.name[sizeof(s.name) - 1] = '\0';
+//     s.temp = -1.0;
+//     s.lastUpdateTime = -10000;
+//     s.rssi = 0;
+//     v.push_back(s);
 
-    strncpy(s.name, "ATC_E52940", sizeof(s.name) - 1);
-    s.name[sizeof(s.name) - 1] = '\0';
-    s.temp = -1.0;
-    s.lastUpdateTime = -10000;
-    s.rssi = 0;
-    v.push_back(s);
+//     strncpy(s.name, "ATC_E52940", sizeof(s.name) - 1);
+//     s.name[sizeof(s.name) - 1] = '\0';
+//     s.temp = -1.0;
+//     s.lastUpdateTime = -10000;
+//     s.rssi = 0;
+//     v.push_back(s);
 
-    strncpy(s.name, "ATC_3EE5A2", sizeof(s.name) - 1);
-    s.name[sizeof(s.name) - 1] = '\0';
-    s.temp = -1.0;
-    s.lastUpdateTime = -10000;
-    s.rssi = 0;
-    v.push_back(s);
+//     strncpy(s.name, "ATC_3EE5A2", sizeof(s.name) - 1);
+//     s.name[sizeof(s.name) - 1] = '\0';
+//     s.temp = -1.0;
+//     s.lastUpdateTime = -10000;
+//     s.rssi = 0;
+//     v.push_back(s);
 
-    return v;
-}
+//     return v;
+// }
 
-std::vector<SENSOR> sensors = initSensors();
-
+std::vector<SENSOR> sensors;
 float avgTemp = -1.0;
 
 std::vector<SENSOR> getSensorList() {
     return sensors;
 }
+
 
 void removeSensor(char* name) {
     for (size_t i = 0; i < sensors.size(); ++i) {
@@ -43,7 +43,15 @@ void removeSensor(char* name) {
             break;
         }
     }
+
+    // Store updated thermometer list
+    std::vector<String> thermometerNames;
+    for (const auto& sensor : sensors) {
+        thermometerNames.push_back(String(sensor.name));
+    }
+    storeThermometerList(thermometerNames);
 }
+
 void addSensor(const char* name) {
     SENSOR newSensor;
     strncpy(newSensor.name, name, sizeof(newSensor.name) - 1);
@@ -52,7 +60,16 @@ void addSensor(const char* name) {
     newSensor.lastUpdateTime = -10000;
     newSensor.rssi = 0;
     sensors.push_back(newSensor);
+
+    // Store updated thermometer list
+    std::vector<String> thermometerNames;
+    for (const auto& sensor : sensors) {
+        thermometerNames.push_back(String(sensor.name));
+    }
+    storeThermometerList(thermometerNames);
 }
+
+
 
 
 void recaculateTemp() {
@@ -121,13 +138,25 @@ void bleScanTask(void* pvParameters) {
     scan->setMaxResults(0);
 
     while (true) {
+        vTaskDelay(pdMS_TO_TICKS(6000)); // Wait 6 seconds before next scan
         Serial.println("Starting BLE scan...");
         scan->start(7000, false, true); // Scan for 7 seconds
-        vTaskDelay(pdMS_TO_TICKS(6000)); // Wait 6 seconds before next scan
     }
 }
 
 void startBLESensorScan() {
+    Serial.println("Getting stored thermometers...");
+
+    // Get stored thermometer list and initialize sensors vector
+    std::vector<String> thermometerNames;
+    getStoredThermometerList(thermometerNames);
+    for (const auto& name : thermometerNames) {
+        addSensor(name.c_str());
+    }
+
+    Serial.printf("Initialized %d sensors from storage\n", (int)sensors.size());
+
+    // Start BLE scan task
     xTaskCreatePinnedToCore(
         bleScanTask,         // Task function
         "BLEScanTask",       // Name
