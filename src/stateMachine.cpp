@@ -201,8 +201,8 @@ long int timeSinceLastHeavyState() {
 
 
 // NOTE: 3600000ms = 1hr
-long int RESET_LIMIT_MS = 70000; // 51 Seconds
-// long int RESET_LIMIT_MS = 3 * 3600000; // 3 hours
+// long int RESET_LIMIT_MS = 70000; // 51 Seconds
+long int RESET_LIMIT_MS = 2 * 3600000; // 2 hours
 long int lastInteractionTime = 0;
 
 void newInteraction() {

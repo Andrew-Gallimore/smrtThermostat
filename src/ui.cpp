@@ -353,7 +353,7 @@ void UIinitializeTimer() {
             /60 to get hours
             so /3600000 ms to hours
         */
-        double remainingMin = (getResetTimeLimit() - timeSinceLastInteraction()) / 1000.0;
+        double remainingMin = (getResetTimeLimit() - timeSinceLastInteraction()) / 60000.0;
         if(remainingMin < 0) remainingMin = 0;
 
         // Serial.println(remainingMin);
