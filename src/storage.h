@@ -64,6 +64,8 @@ void storeNetworkPWD(char* PWD);
 void storeThermometerList(const std::vector<std::string>& thermometerNames);
 
 // Getters
+int getMinTemp();
+int getMaxTemp();
 unsigned long getStoredTimestamp();
 float getStoredTemp();
 float getStoredTempGoal();

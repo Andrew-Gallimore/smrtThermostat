@@ -382,6 +382,13 @@ void storeThermometerList(const std::vector<String>& thermometerNames) {
 
 
 // Getters
+int getMinTemp() {
+  return MIN_GOAL_TEMP;
+}
+int getMaxTemp() {
+  return MAX_GOAL_TEMP;
+}
+
 unsigned long getStoredTimestamp() {
   return lastStorageTime;
 }

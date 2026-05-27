@@ -46,6 +46,7 @@ void onNewTempReading(float newTemp) {
   if(whoAmI() == PEERTYPE::PARENT) {
     updateSharedTemp(newTemp);
   }
+
   temp = newTemp;
   TempNeedsUpdate = true;
   storeTemp(newTemp);
@@ -280,161 +281,188 @@ void computeManualState(STATE selectedState) {
     return;
   }
 
-  // ==== Switching between states ====
-  switch (currentState) {
 
-    // Current state
-    case STATE::Idle:
-      switch (selectedState) {
-
-        // Selected state
-        case STATE::Cool:
-          setCurrentState(STATE::AwaitingCool);
-          break;
-        // Selected state
-        case STATE::Heat:
-          setCurrentState(STATE::AwaitingHeat);
-          break;
-        // Selected state
-        case STATE::Fan:
-          setCurrentState(STATE::Fan);
-          break;
+  // Min and Max safty starting the thermostat
+  if(getMinTemp() > temp) {
+    // Start heating
+    if(currentState == STATE::Heat || currentState == STATE::Cool) {
+      setLastHeavyState(currentState);
+      setCurrentState(STATE::AwaitingHeat);
+      resetHeavyEndedTimer();
+    }else {
+      setCurrentState(STATE::AwaitingHeat);
+    }
+  }else if(getMaxTemp() < temp) {
+    // Start cooling
+    if(currentState == STATE::Heat || currentState == STATE::Cool) {
+      setLastHeavyState(currentState);
+      setCurrentState(STATE::AwaitingCool);
+      resetHeavyEndedTimer();
+    }else {
+      setCurrentState(STATE::AwaitingCool);
+    }
+  }else {
+    // We are within the good temps, so we can do standard temp changes
+  
+    // ==== Switching between states ====
+    switch (currentState) {
+  
+      // Current state
+      case STATE::Idle:
+        switch (selectedState) {
+  
+          // Selected state
+          case STATE::Cool:
+            setCurrentState(STATE::AwaitingCool);
+            break;
+          // Selected state
+          case STATE::Heat:
+            setCurrentState(STATE::AwaitingHeat);
+            break;
+          // Selected state
+          case STATE::Fan:
+            setCurrentState(STATE::Fan);
+            break;
+          
+          default:
+            break;
+        }
+        break;
+  
+      // Current state
+      case STATE::AwaitingHeat:
+        switch (selectedState) {
+  
+          // Selected state
+          case STATE::Idle:
+            setCurrentState(STATE::Idle);
+            break;
+          // Selected state
+          case STATE::Cool:
+            setCurrentState(STATE::AwaitingCool);
+            break;
+          // Selected state
+          case STATE::Fan:
+            setCurrentState(STATE::Fan);
+            break;
+          
+          default:
+            break;
+        }
+        break;
+  
+      // Current state
+      case STATE::Heat:
+        switch (selectedState) {
+  
+          // Selected state
+          case STATE::Idle:
+            setLastHeavyState(currentState);
+            setCurrentState(STATE::Idle);
+            resetHeavyEndedTimer();
+            break;
+          // Selected state
+          case STATE::Cool:
+            setLastHeavyState(currentState);
+            setCurrentState(STATE::AwaitingCool);
+            resetHeavyEndedTimer();
+            break;
+          // Selected state
+          case STATE::Fan:
+            setLastHeavyState(currentState);
+            setCurrentState(STATE::Fan);
+            resetHeavyEndedTimer();
+            break;
+          
+          default:
+            break;
+        }
+        break;
+  
+      // Current state
+      case STATE::AwaitingCool:
+        switch (selectedState) {
+  
+          // Selected state
+          case STATE::Idle:
+            setCurrentState(STATE::Idle);
+            break;
+          // Selected state
+          case STATE::Heat:
+            setCurrentState(STATE::AwaitingHeat);
+            break;
+          // Selected state
+          case STATE::Fan:
+            setCurrentState(STATE::Fan);
+            break;
+          
+          default:
+            break;
+        }
+        break;
+  
+      // Current state
+      case STATE::Cool:
+        switch (selectedState) {
+  
+          // Selected state
+          case STATE::Idle:
+            setLastHeavyState(currentState);
+            setCurrentState(STATE::Idle);
+            resetHeavyEndedTimer();
+            break;
+          // Selected state
+          case STATE::Heat:
+            setLastHeavyState(currentState);
+            setCurrentState(STATE::AwaitingHeat);
+            resetHeavyEndedTimer();
+            break;
+          // Selected state
+          case STATE::Fan:
+            setLastHeavyState(currentState);
+            setCurrentState(STATE::Fan);
+            resetHeavyEndedTimer();
+            break;
+          
+          default:
+            break;
+        }
+        break;
         
-        default:
-          break;
-      }
-      break;
-
-    // Current state
-    case STATE::AwaitingHeat:
-      switch (selectedState) {
-
-        // Selected state
-        case STATE::Idle:
-          setCurrentState(STATE::Idle);
-          break;
-        // Selected state
-        case STATE::Cool:
-          setCurrentState(STATE::AwaitingCool);
-          break;
-        // Selected state
-        case STATE::Fan:
-          setCurrentState(STATE::Fan);
-          break;
-        
-        default:
-          break;
-      }
-      break;
-
-    // Current state
-    case STATE::Heat:
-      switch (selectedState) {
-
-        // Selected state
-        case STATE::Idle:
-          setLastHeavyState(currentState);
-          setCurrentState(STATE::Idle);
-          resetHeavyEndedTimer();
-          break;
-        // Selected state
-        case STATE::Cool:
-          setLastHeavyState(currentState);
-          setCurrentState(STATE::AwaitingCool);
-          resetHeavyEndedTimer();
-          break;
-        // Selected state
-        case STATE::Fan:
-          setLastHeavyState(currentState);
-          setCurrentState(STATE::Fan);
-          resetHeavyEndedTimer();
-          break;
-        
-        default:
-          break;
-      }
-      break;
-
-    // Current state
-    case STATE::AwaitingCool:
-      switch (selectedState) {
-
-        // Selected state
-        case STATE::Idle:
-          setCurrentState(STATE::Idle);
-          break;
-        // Selected state
-        case STATE::Heat:
-          setCurrentState(STATE::AwaitingHeat);
-          break;
-        // Selected state
-        case STATE::Fan:
-          setCurrentState(STATE::Fan);
-          break;
-        
-        default:
-          break;
-      }
-      break;
-
-    // Current state
-    case STATE::Cool:
-      switch (selectedState) {
-
-        // Selected state
-        case STATE::Idle:
-          setLastHeavyState(currentState);
-          setCurrentState(STATE::Idle);
-          resetHeavyEndedTimer();
-          break;
-        // Selected state
-        case STATE::Heat:
-          setLastHeavyState(currentState);
-          setCurrentState(STATE::AwaitingHeat);
-          resetHeavyEndedTimer();
-          break;
-        // Selected state
-        case STATE::Fan:
-          setLastHeavyState(currentState);
-          setCurrentState(STATE::Fan);
-          resetHeavyEndedTimer();
-          break;
-        
-        default:
-          break;
-      }
-      break;
-      
-    // Current state
-    case STATE::Fan:
-      switch (selectedState) {
-
-        // Selected state
-        case STATE::Idle:
-          setCurrentState(STATE::Idle);
-          break;
-        // Selected state
-        case STATE::Heat:
-          setCurrentState(STATE::AwaitingHeat);
-          break;
-        // Selected state
-        case STATE::Cool:
-          setCurrentState(STATE::AwaitingCool);
-          break;
-        
-        default:
-          break;
-      }
-      break;
-
-    default:
-      break;
+      // Current state
+      case STATE::Fan:
+        switch (selectedState) {
+  
+          // Selected state
+          case STATE::Idle:
+            setCurrentState(STATE::Idle);
+            break;
+          // Selected state
+          case STATE::Heat:
+            setCurrentState(STATE::AwaitingHeat);
+            break;
+          // Selected state
+          case STATE::Cool:
+            setCurrentState(STATE::AwaitingCool);
+            break;
+          
+          default:
+            break;
+        }
+        break;
+  
+      default:
+        break;
+    }
+  
   }
 
 
   // ==== Limiting active state switches by delay ====
   // Past this if statement, we can trust that we are allowed to go to heat/cool state
-  if(timeSinceLastHeavyState() < getDelay(getLastHeavyState(), selectedState)) {
+  currentState = getCurrentState();
+
+  if(timeSinceLastHeavyState() < getDelay(getLastHeavyState(), currentState)) {
     Serial.println("Awaiting delay");
     return;
   }
@@ -453,6 +481,7 @@ void computeManualState(STATE selectedState) {
       setCurrentState(STATE::Cool);
       break;
   }
+
 }
 
 void computeAutoState() {
@@ -463,75 +492,99 @@ void computeAutoState() {
   
   STATE goalState = STATE::Idle;
 
-  switch(currentState) {
-    case STATE::Idle:
-    case STATE::AwaitingCool:
-    case STATE::AwaitingHeat:
-    case STATE::Fan:
-      // If the resetTimer is up and the device isn't unlocked
-      if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
-        Serial.println(">>>> Turning off due to timer...");
-        setCurrentState(STATE::Idle);
-        flag_offButton = true;
-        break;
-      }
+  // Min and Max safty starting the thermostat
+  if(getMinTemp() > temp) {
+    // Start heating
+    if(currentState == STATE::Heat || currentState == STATE::Cool) {
+      setLastHeavyState(currentState);
+      setCurrentState(STATE::AwaitingHeat);
+      resetHeavyEndedTimer();
+    }else {
+      setCurrentState(STATE::AwaitingHeat);
+    }
+  }else if(getMaxTemp() < temp) {
+    // Start cooling
+    if(currentState == STATE::Heat || currentState == STATE::Cool) {
+      setLastHeavyState(currentState);
+      setCurrentState(STATE::AwaitingCool);
+      resetHeavyEndedTimer();
+    }else {
+      setCurrentState(STATE::AwaitingCool);
+    }
+  }else {
+    // We are within the good temps, so we can do standard temp changes
 
-      // Otherwise, just do the regular automatic changes
-      if(temp + margin < goalTemp) {
-        setCurrentState(STATE::AwaitingHeat);
-      }else if(temp - margin > goalTemp) {
-        setCurrentState(STATE::AwaitingCool);
-      }else {
-        setCurrentState(STATE::Idle);
-      }
-      break;
+    switch(currentState) {
+      case STATE::Idle:
+      case STATE::AwaitingCool:
+      case STATE::AwaitingHeat:
+      case STATE::Fan:
+        // If the resetTimer is up and the device isn't unlocked
+        if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
+          Serial.println(">>>> Turning off due to timer...");
+          setCurrentState(STATE::Idle);
+          flag_offButton = true;
+          break;
+        }
 
-    case STATE::Cool:
-      // If the resetTimer is up and the device isn't unlocked
-      if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
-        Serial.println(">>>> Turning off due to timer...");
-        setLastHeavyState(currentState);
-        setCurrentState(STATE::Idle);
-        resetHeavyEndedTimer();
-        flag_offButton = true;
+        // Otherwise, just do the regular automatic changes
+        if(temp + margin < goalTemp) {
+          setCurrentState(STATE::AwaitingHeat);
+        }else if(temp - margin > goalTemp) {
+          setCurrentState(STATE::AwaitingCool);
+        }else {
+          setCurrentState(STATE::Idle);
+        }
         break;
-      }
 
-      if(temp + margin < goalTemp) {
-        setLastHeavyState(currentState);
-        setCurrentState(STATE::AwaitingHeat);
-        resetHeavyEndedTimer();
-      }else if(abs(temp - goalTemp) < margin) {
-        setLastHeavyState(currentState);
-        setCurrentState(STATE::Idle);
-        resetHeavyEndedTimer();
-      }
-      break;
-    case STATE::Heat:
-      // If the resetTimer is up and the device isn't unlocked
-      if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
-        Serial.println(">>>> Turning off due to timer...");
-        setLastHeavyState(currentState);
-        setCurrentState(STATE::Idle);
-        resetHeavyEndedTimer();
-        flag_offButton = true;
+      case STATE::Cool:
+        // If the resetTimer is up and the device isn't unlocked
+        if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
+          Serial.println(">>>> Turning off due to timer...");
+          setLastHeavyState(currentState);
+          setCurrentState(STATE::Idle);
+          resetHeavyEndedTimer();
+          flag_offButton = true;
+          break;
+        }
+
+        if(temp + margin < goalTemp) {
+          setLastHeavyState(currentState);
+          setCurrentState(STATE::AwaitingHeat);
+          resetHeavyEndedTimer();
+        }else if(abs(temp - goalTemp) < margin) {
+          setLastHeavyState(currentState);
+          setCurrentState(STATE::Idle);
+          resetHeavyEndedTimer();
+        }
         break;
-      }
-      
-      if(temp - margin > goalTemp) {
-        setLastHeavyState(currentState);
-        setCurrentState(STATE::AwaitingCool);
-        resetHeavyEndedTimer();
-      }else if(abs(temp - goalTemp) < margin) {
-        setLastHeavyState(currentState);
-        setCurrentState(STATE::Idle);
-        resetHeavyEndedTimer();
-      }
-      break;
+      case STATE::Heat:
+        // If the resetTimer is up and the device isn't unlocked
+        if(!isUnlocked() && timeSinceLastInteraction() > RESET_LIMIT_MS) {
+          Serial.println(">>>> Turning off due to timer...");
+          setLastHeavyState(currentState);
+          setCurrentState(STATE::Idle);
+          resetHeavyEndedTimer();
+          flag_offButton = true;
+          break;
+        }
+        
+        if(temp - margin > goalTemp) {
+          setLastHeavyState(currentState);
+          setCurrentState(STATE::AwaitingCool);
+          resetHeavyEndedTimer();
+        }else if(abs(temp - goalTemp) < margin) {
+          setLastHeavyState(currentState);
+          setCurrentState(STATE::Idle);
+          resetHeavyEndedTimer();
+        }
+        break;
+    }
+
   }
 
-  Serial.println(timeSinceLastHeavyState());
-  Serial.println(getDelay(getLastHeavyState(), getCurrentState()));
+  // Serial.println(timeSinceLastHeavyState());
+  // Serial.println(getDelay(getLastHeavyState(), getCurrentState()));
 
   if(timeSinceLastHeavyState() < getDelay(getLastHeavyState(), getCurrentState())) {
     Serial.println("Awaiting delay (auto)");

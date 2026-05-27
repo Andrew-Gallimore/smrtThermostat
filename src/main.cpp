@@ -78,7 +78,6 @@ void updateState(STATE selectedState) {
     setCurrentState(STATE::Idle);
     return;
   }
-
   
   if(whoAmI() == PEERTYPE::PARENT) {
     STATE preState = getCurrentState();
@@ -132,10 +131,13 @@ void onTempUpButtonClick(lv_event_t* e) {
 
     if(currentTemp < MAX_GOAL_TEMP) {
         setTempGoal(currentTemp + 1.0);
+        UIgoalSet(currentTemp + 1.0);
     }else {
         setTempGoal(MAX_GOAL_TEMP);
+        UIgoalSet(MAX_GOAL_TEMP);
     }
     checkState();
+
   }
 }
 
@@ -149,8 +151,10 @@ void onTempDownButtonClick(lv_event_t* e) {
 
     if(currentTemp > MIN_GOAL_TEMP) {
       setTempGoal(currentTemp - 1.0);
+      UIgoalSet(currentTemp - 1.0);
     }else {
       setTempGoal(MIN_GOAL_TEMP);
+      UIgoalSet(MIN_GOAL_TEMP);
     }
     checkState();
   }
