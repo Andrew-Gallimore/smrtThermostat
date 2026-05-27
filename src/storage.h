@@ -21,12 +21,17 @@ enum PEERTYPE {
   CHILD
 };
 
+// 8C:BF:EA:0D:B7:E4
+// AC:27:6E:A4:A9:70
 const uint8_t CHILD_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0D, 0xB7, 0xE4};
-const uint8_t PARENT_ADDR[] = {0xDC, 0xB4, 0xD9, 0x04, 0x90, 0x24};
+const uint8_t PARENT_ADDR[] = {0xAC, 0x27, 0x6E, 0xA4, 0xA9, 0x70};
+const bool JUST_TREAT_ME_AS_PARENT = false; // If set, bypasses mac address check
 // const uint8_t PARENT_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0E, 0xD0, 0xD4};
 // DC:B4:D9:04:90:24
 
 PEERTYPE whoAmI();
+
+char* getParentMac();
 
 // void updateStorageMode(MODE newMode);
 // void updateStorageTempGoal(float newTempGoal);

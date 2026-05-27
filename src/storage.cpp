@@ -46,14 +46,27 @@ PEERTYPE whoAmI() {
       myMacFound = true;
   }
 
-  return PEERTYPE::PARENT;
+  if(JUST_TREAT_ME_AS_PARENT) {
+    return PEERTYPE::PARENT;
+  }
 
-  // // Telling if we are a parent or child device
-  // if(memcmp(myMac, PARENT_ADDR, sizeof(myMac)) == 0) {
-  //   return PEERTYPE::PARENT;
-  // } else {
-  //   return PEERTYPE::CHILD;
-  // }
+  // Telling if we are a parent or child device
+  if(memcmp(myMac, PARENT_ADDR, sizeof(myMac)) == 0) {
+    return PEERTYPE::PARENT;
+  } else {
+    return PEERTYPE::CHILD;
+  }
+}
+
+// In the format of: "dcb4d9049024"
+char macStr[13]; // 12 hex chars + null terminator
+char* getParentMac() {
+  snprintf(macStr, sizeof(macStr),
+          "%02x%02x%02x%02x%02x%02x",
+          PARENT_ADDR[0], PARENT_ADDR[1], PARENT_ADDR[2],
+          PARENT_ADDR[3], PARENT_ADDR[4], PARENT_ADDR[5]);
+
+  return macStr;
 }
 
 #define SD_CS     42   // Chip Select for the SD card

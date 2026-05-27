@@ -3,6 +3,8 @@
 
 TaskHandle_t wifiMqttTaskHandle = NULL;
 
+SemaphoreHandle_t mqttMutex;
+
 // Making wifi using classes
 WiFiClient client;
 HADevice device;
@@ -10,7 +12,7 @@ HAMqtt mqtt(client, device);
 
 bool wifiCredentialsChanged = false;
 
-char deviceName[18] = "Gaming_Thermostat";
+char deviceName[19] = "Testing_Thermostat";
 char HAaddr[12] = "10.1.10.132";
 
 // Intializing HVAC object 
@@ -19,26 +21,51 @@ HAHVAC hvac(
   HAHVAC::TargetTemperatureFeature | HAHVAC::PowerFeature | HAHVAC::ModesFeature | HAHVAC::ActionFeature
 );
 
+// For listening to home assistant (populated in setupMQTT())
+char tempStatTopic[128];
+char tempCmdTopic[128];
+char modeCmdTopic[128];
+char actTopic[128];
+
+// For listening to peer therm. (populated in setupMQTT())
+char toChildGoalTempTopic[64];
+char toChildTempTopic[64];
+char toChildModeTopic[64];
+char toChildStateTopic[64];
+char toChildUnlockedTopic[64];
+
+char toParentGoalTempTopic[64];
+char toParentTempTopic[64];
+char toParentModeTopic[64];
+char toParentStateTopic[64];
+char toParentUnlockedTopic[64];
+
 
 
 void updateSharedTemp(float temp) {
     // Sending to homeassistant or remote thermostat
     if(whoAmI() == PEERTYPE::PARENT) {
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildTempTopic, String(temp).c_str());
+        xSemaphoreGive(mqttMutex);
         hvac.setCurrentTemperature(temp);
-    } else {
-        mqtt.publish("home/teen_room/current_temp", String(temp).c_str());
+    }else {
+        // mqtt.publish(toParentTempTopic, String(temp).c_str());
     }
-
+    
     Serial.print("Updating shared temperature to: ");
     Serial.println(temp);
 }
 
 void updateSharedTempGoal(float goalTemp) {
-    hvac.setTargetTemperature(goalTemp);
     // Sending to homeassistant or remote thermostat
     if(whoAmI() == PEERTYPE::PARENT) {
-    } else {
-        mqtt.publish("home/teen_room/goal_temp", String(goalTemp).c_str());
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildGoalTempTopic, String(goalTemp).c_str());
+        xSemaphoreGive(mqttMutex);
+        hvac.setTargetTemperature(goalTemp);
+    }else {
+        // mqtt.publish(toParentGoalTempTopic, String(goalTemp).c_str());
     }
 
     Serial.print("Updating shared goal temperature to: ");
@@ -48,6 +75,10 @@ void updateSharedTempGoal(float goalTemp) {
 void updateSharedMode(MODE mode) {
     // Sending to homeassistant or remote thermostat
     if(whoAmI() == PEERTYPE::PARENT) {
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildModeTopic, String((int)mode).c_str());
+        xSemaphoreGive(mqttMutex);
+        
         if(mode == MODE::Off) {
             hvac.setMode(HAHVAC::OffMode);
         } else if (mode == MODE::Auto) {
@@ -65,17 +96,21 @@ void updateSharedMode(MODE mode) {
             }
         }
     }else {
-        mqtt.publish("home/teen_room/mode", String((int)mode).c_str());
+        // mqtt.publish(toParentModeTopic, String((int)mode).c_str());
     }
-
+    
     Serial.print("Updating shared mode to: ");
     Serial.println(mode);
 }
 
 void updateSharedState(STATE state) {
-    MODE mode = getCurrentMode();
     // Sending to homeassistant or remote thermostat
+    MODE mode = getCurrentMode();
     if(whoAmI() == PEERTYPE::PARENT) {
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildStateTopic, String((int)state).c_str());
+        xSemaphoreGive(mqttMutex);
+        
         if(state == STATE::Idle) {
             if(mode == MODE::Manual) {
                 hvac.setMode(HAHVAC::DryMode); // Assuming Manual Idle is equivalent to DryMode mode
@@ -105,10 +140,10 @@ void updateSharedState(STATE state) {
             hvac.setAction(HAHVAC::FanAction);
             hvac.setMode(HAHVAC::FanOnlyMode);
         }
-    } else {
-        mqtt.publish("home/teen_room/state", String((int)state).c_str());
+    }else {
+        // mqtt.publish(toParentStateTopic, String((int)state).c_str());
     }
-
+    
     Serial.print("Updating shared state to: ");
     Serial.println(state);
 }
@@ -122,45 +157,79 @@ void updateSharedState(STATE state) {
 void onGoalTemperatureCommand(HANumeric temperature, HAHVAC* sender) {
     // This is from Home Assistant, so we are parent
     float temperatureFloat = temperature.toFloat();
-
+    
     Serial.print("Target (goal) temperature: ");
     Serial.println(temperatureFloat);
-
-    sender->setTargetTemperature(temperature); // report target temperature back to the HA panel
-    onRemoteTempGoal(temperatureFloat); // Calling callback function
+    
+    // sender->setTargetTemperature(temperature); // report target temperature back to the HA panel
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(toChildGoalTempTopic, String(temperatureFloat).c_str());
+    xSemaphoreGive(mqttMutex);
+    parentOnTempGoal(temperatureFloat); // Calling callback function
 }
 
 void onModeCommand(HAHVAC::Mode mode, HAHVAC* sender) {
     Serial.print("Mode: ");
     if (mode == HAHVAC::OffMode) {
-        Serial.println("MODE: off");
-        onRemoteMode(MODE::Off);
+        Serial.println("off");
+        parentOnRemoteMode(MODE::Off);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildModeTopic, String((int)MODE::Off).c_str());
+        xSemaphoreGive(mqttMutex);
         sender->setCurrentAction(HAHVAC::OffAction);
+        
     }else if (mode == HAHVAC::AutoMode) {
-        Serial.println("MODE: auto");
-        onRemoteMode(MODE::Auto);
+        Serial.println("auto");
+        parentOnRemoteMode(MODE::Auto);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildModeTopic, String((int)MODE::Auto).c_str());
+        xSemaphoreGive(mqttMutex);
     } else if (mode == HAHVAC::CoolMode) {
-        Serial.println("MODE: cool");
-        onRemoteMode(MODE::Manual);
-        onRemoteState(STATE::Cool);
+        Serial.println("cool");
+        parentOnRemoteMode(MODE::Manual);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
+        xSemaphoreGive(mqttMutex);
+
+        parentOnRemoteState(STATE::Cool);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildStateTopic, String((int)STATE::Cool).c_str());
+        xSemaphoreGive(mqttMutex);
     } else if (mode == HAHVAC::HeatMode) {
-        Serial.println("MODE: heat");
-        onRemoteMode(MODE::Manual);
-        onRemoteState(STATE::Heat);
+        Serial.println("heat");
+        parentOnRemoteMode(MODE::Manual);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
+        xSemaphoreGive(mqttMutex);
+
+        parentOnRemoteState(STATE::Heat);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildStateTopic, String((int)STATE::Heat).c_str());
+        xSemaphoreGive(mqttMutex);
     }else if (mode == HAHVAC::FanOnlyMode) {
-        Serial.println("MODE: fan");
-        onRemoteMode(MODE::Manual);
-        onRemoteState(STATE::Fan);
+        Serial.println("fan");
+        parentOnRemoteMode(MODE::Manual);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
+        xSemaphoreGive(mqttMutex);
+
+        parentOnRemoteState(STATE::Fan);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildStateTopic, String((int)STATE::Fan).c_str());
+        xSemaphoreGive(mqttMutex);
     } else if (mode == HAHVAC::DryMode) {
-        Serial.println("MODE: (dry) manual");
-        onRemoteMode(MODE::Manual);
+        Serial.println("(dry) manual");
+        parentOnRemoteMode(MODE::Manual);
+        xSemaphoreTake(mqttMutex, portMAX_DELAY);
+        mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
+        xSemaphoreGive(mqttMutex);
         sender->setCurrentAction(HAHVAC::IdleAction);
     } else {
-        Serial.print("Mode was recived that wasn't planned for... ");
+        Serial.print("Wasn't planned for... ");
         Serial.println(mode);
     } 
 
-    sender->setMode(mode); // report mode back to the HA panel
+    // sender->setMode(mode); // report mode back to the HA panel
 }
 
 
@@ -169,89 +238,103 @@ void onModeCommand(HAHVAC::Mode mode, HAHVAC* sender) {
 
 void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
     // This callback is called when message from MQTT broker is received.
-    // Please note that you should always verify if the message's topic is the one you expect.
-    // For example: if (memcmp(topic, "myCustomTopic") == 0) { ... }
-
-    if(whoAmI() == PEERTYPE::CHILD) {
-        if (strcmp(topic, "aha/8cbfea0ed0d4/Teen_Room/temp_stat_t") == 0) {
-            Serial.println("Received temperature update from Home Assistant");
-            float newGoalTemp = atof((const char*)payload);
-    
-            if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
-                onRemoteTempGoal(newGoalTemp);
-            };
-        }else if (strcmp(topic, "aha/8cbfea0ed0d4/Teen_Room/mode_cmd_t") == 0) {
-            Serial.println("Received mode update from Home Assistant");
-            if (strstr((const char*)payload, "auto") != nullptr) {
-                onRemoteMode(MODE::Auto);
-            }else if (strstr((const char*)payload, "off") != nullptr) {
-                onRemoteMode(MODE::Off);
-            }else if (strstr((const char*)payload, "dry") != nullptr) {
-                onRemoteMode(MODE::Manual); // NOTE: DRY means MANUAL
-            }else if (strstr((const char*)payload, "heat") != nullptr) {
-                onRemoteMode(MODE::Manual);
-                onRemoteState(STATE::Heat);
-            }else if (strstr((const char*)payload, "cool") != nullptr) {
-                onRemoteMode(MODE::Manual);
-                onRemoteState(STATE::Cool);
-            }else if (strstr((const char*)payload, "fan_only") != nullptr) {
-                onRemoteMode(MODE::Manual);
-                onRemoteState(STATE::Fan);
-            };
-        }else if (strcmp(topic, "aha/8cbfea0ed0d4/Teen_Room/act_t") == 0) {
-            Serial.println("Received action update from Home Assistant");
-            if(strstr((const char*)payload, "idle") != nullptr) {
-                onRemoteState(STATE::Idle);
-            }else if(strstr((const char*)payload, "heating") != nullptr) {
-                onRemoteState(STATE::Heat);
-            }else if(strstr((const char*)payload, "cooling") != nullptr) {
-                onRemoteState(STATE::Cool);
-            }else if(strstr((const char*)payload, "fan") != nullptr) {
-                onRemoteState(STATE::Fan);
-            }
-        }
-    }else {
-        if(strcmp(topic, "home/teen_room/goal_temp") == 0) {
-            Serial.println("Received goal temperature update from remote thermostat");
-            // Passing on command to home assistant
-            float newGoalTemp = atof((const char*)payload);
-    
-            if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
-                onHATempGoal(newGoalTemp);
-            };
-        }else if(strcmp(topic, "home/teen_room/current_temp") == 0) {
-            Serial.println("Received current temperature update from remote thermostat");
-            float newTemp = atof((const char*)payload);
-            onRemoteTemp(newTemp);
-        }else if(strcmp(topic, "home/teen_room/mode") == 0) {
-            Serial.println("Received mode update from remote thermostat");
-            // Passing on command to home assistant
-            int newMode = (int)atoi((const char*)payload);
-            Serial.println("New mode: ");
-            Serial.println((int)newMode);
-            onHARemoteMode(static_cast<MODE>(newMode));
-        }else if(strcmp(topic, "home/teen_room/state") == 0) {
-            Serial.println("Received state update from remote thermostat");
-            // Passing on command to home assistant
-            int newState = (int)atoi((const char*)payload);
-            onHARemoteState(static_cast<STATE>(newState));
-        }
-
+    char msg[128];
+    if(length >= sizeof(msg)) {
+        length = sizeof(msg) - 1;
     }
 
-    if (strcmp(topic, "aha/dcb4d9049024/Teen_Room/temp_cmd_t") == 0) {
-        Serial.println("Received temperature update from Home Assistant");
-        float newGoalTemp = atof((const char*)payload);
-
-        if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
-            onHATempGoal(newGoalTemp);
-        };
-    }
+    memcpy(msg, payload, length);
+    msg[length] = '\0';
 
     Serial.print("New message on topic: ");
     Serial.println(topic);
+
     Serial.print("Data: ");
-    Serial.println((const char*)payload);
+    Serial.println(msg);
+
+    if(whoAmI() == PEERTYPE::CHILD) {
+        // HERE, we are child, ...
+
+        if(strcmp(topic, toChildGoalTempTopic) == 0) {
+            Serial.println("Received goal temperature update from remote thermostat");
+            // Passing on command to home assistant
+            float newGoalTemp = atof(msg);
+    
+            if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
+                childOnTempGoal(newGoalTemp);
+            };
+        }else if(strcmp(topic, toChildTempTopic) == 0) {
+            Serial.println("Received current temperature update from remote thermostat");
+            float newTemp = atof(msg);
+            childOnRemoteTemp(newTemp);
+        }else if(strcmp(topic, toChildModeTopic) == 0) {
+            Serial.println("Received mode update from remote thermostat");
+            // Passing on command to home assistant
+            int newMode = (int)atoi(msg);
+            Serial.println("New mode: ");
+            Serial.println((int)newMode);
+            childOnRemoteMode(static_cast<MODE>(newMode));
+        }else if(strcmp(topic, toChildStateTopic) == 0) {
+            Serial.println("Received state update from remote thermostat");
+            // Passing on command to home assistant
+            int newState = (int)atoi(msg);
+            childOnRemoteState(static_cast<STATE>(newState));
+        }else if(strcmp(topic, toChildUnlockedTopic) == 0) {
+            Serial.println("Received unlocked update from remote thermostat");
+            // Passing on command to home assistant
+        }
+    }else {
+        // HERE, we are parent, getting messages from children peers
+
+        if(strcmp(topic, toParentGoalTempTopic) == 0) {
+            Serial.println("Received goal temperature update from remote thermostat");
+            // Passing on command to home assistant
+            float newGoalTemp = atof(msg);
+    
+            if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
+                parentOnTempGoal(newGoalTemp);
+            };
+        }else if(strcmp(topic, toParentModeTopic) == 0) {
+            Serial.print("Remote mode button clicked: ");
+            // Passing on command to home assistant
+            int modeButton = (int)atoi(msg);
+            Serial.println((int)modeButton);
+
+            if(modeButton == MODE::Off) {
+                flag_offButton = true;
+            }else if(modeButton == MODE::Auto) {
+                flag_autoButton = true;
+            }else if(modeButton == MODE::Manual) {
+                flag_manualButton = true;
+            }
+        }else if(strcmp(topic, toParentStateTopic) == 0) {
+            Serial.println("Remote state button clicked");
+            // Passing on command to home assistant
+            int stateButton = (int)atoi(msg);
+            
+            if(stateButton == STATE::Cool) {
+                flag_manualCoolButton = true;
+            }else if(stateButton == STATE::Heat) {
+                flag_manualHeatButton = true;
+            }else if(stateButton == STATE::Fan) {
+                flag_manualFanButton = true;
+            }
+        }else if(strcmp(topic, toParentUnlockedTopic) == 0) {
+            Serial.println("Received unlocked update from remote thermostat");
+            // Passing on command to home assistant
+        }
+
+    }
+
+    // Regardless of if we are a parent of child, show the set temp from home assistant
+    if (strcmp(topic, tempCmdTopic) == 0) {
+        Serial.println("Received temperature update from Home Assistant");
+        float newGoalTemp = atof(msg);
+
+        if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
+            childOnTempGoal(newGoalTemp);
+        };
+    }
 }
 
 void onMqttConnected() {
@@ -259,15 +342,18 @@ void onMqttConnected() {
 
     if(whoAmI() == PEERTYPE::PARENT) {
         // To recive messages from child devices
-        mqtt.subscribe("home/teen_room/goal_temp");
-        mqtt.subscribe("home/teen_room/current_temp");
-        mqtt.subscribe("home/teen_room/mode");
-        mqtt.subscribe("home/teen_room/state");
+        mqtt.subscribe(toParentGoalTempTopic);
+        mqtt.subscribe(toParentTempTopic);
+        mqtt.subscribe(toParentModeTopic);
+        mqtt.subscribe(toParentStateTopic);
+        mqtt.subscribe(toParentUnlockedTopic);
     }else {
-        // To recive messages from home assistant, we are a child, and we don't get subscribed automatically/properly otherwise
-        mqtt.subscribe("aha/8cbfea0ed0d4/Teen_Room/temp_stat_t");
-        mqtt.subscribe("aha/8cbfea0ed0d4/Teen_Room/mode_cmd_t");
-        mqtt.subscribe("aha/8cbfea0ed0d4/Teen_Room/act_t");
+        // To recive messages from parent device
+        mqtt.subscribe(toChildGoalTempTopic);
+        mqtt.subscribe(toChildTempTopic);
+        mqtt.subscribe(toChildModeTopic);
+        mqtt.subscribe(toChildStateTopic);
+        mqtt.subscribe(toChildUnlockedTopic);
     }
 }
 
@@ -304,31 +390,6 @@ void getAvailableNetworks(WiFiNetwork* networks, int& networkCount) {
     Serial.printf("Found %d networks.\n", networkCount);
 }
 
-
-
-// void getAvailableNetworks(WiFiNetwork* networks, int& networkCount) {
-//     networks = networkList;
-//     networkCount = networkListCount;
-// }
-// void scanAvailableNetworks() {
-//     networkListCount = 0;
-
-//     int scanResult = WiFi.scanNetworks();
-    
-//     if (scanResult == WIFI_SCAN_FAILED || scanResult == 0) {
-//         networkListCount = 0;
-//     }
-
-//     networkListCount = (scanResult < 16) ? scanResult : 16;
-
-//     for (int i = 0; i < networkListCount; i++) {
-//         strncpy(networkList[i].ssid, WiFi.SSID(i).c_str(), 32);
-//         networkList[i].ssid[32] = '\0';
-//         networkList[i].rssi = WiFi.RSSI(i);
-//     }
-    
-//     WiFi.scanDelete();
-// }
 
 
 void setWiFiCredentials(char* ssid, char* password) {
@@ -424,12 +485,52 @@ void wifiMqttTask(void* parameter) {
 void setupMQTT() {
     Serial.println("Setting up MQTT...");
 
+    mqttMutex = xSemaphoreCreateMutex();
+
     // Print out the MAC address of the device
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
     Serial.printf("MAC Address: %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
     WiFi.macAddress(mac);
+
+    // Populating MQTT topics
+    char* parentMac = getParentMac();
+    Serial.printf(parentMac);
+    snprintf(tempStatTopic, sizeof(tempStatTopic),
+            "aha/%s/%s/temp_stat_t",
+            parentMac, deviceName);
+    snprintf(tempCmdTopic, sizeof(tempCmdTopic),
+            "aha/%s/%s/temp_cmd_t",
+            parentMac, deviceName);
+    snprintf(modeCmdTopic, sizeof(modeCmdTopic),
+            "aha/%s/%s/mode_cmd_t",
+            parentMac, deviceName);
+    snprintf(actTopic, sizeof(actTopic),
+            "aha/%s/%s/act_t",
+            parentMac, deviceName);
+
+    snprintf(toChildGoalTempTopic, sizeof(toChildGoalTempTopic),
+            "privSync/%s/toChild/goal_temp", deviceName);
+    snprintf(toChildTempTopic, sizeof(toChildGoalTempTopic),
+            "privSync/%s/toChild/temp", deviceName);
+    snprintf(toChildModeTopic, sizeof(toChildGoalTempTopic),
+            "privSync/%s/toChild/mode", deviceName);
+    snprintf(toChildStateTopic, sizeof(toChildGoalTempTopic),
+            "privSync/%s/toChild/state", deviceName);
+    snprintf(toChildUnlockedTopic, sizeof(toChildGoalTempTopic),
+            "privSync/%s/toChild/unlocked", deviceName);
+
+    snprintf(toParentGoalTempTopic, sizeof(toParentGoalTempTopic),
+            "privSync/%s/toParent/goal_temp", deviceName);
+    snprintf(toParentTempTopic, sizeof(toParentGoalTempTopic),
+            "privSync/%s/toParent/temp", deviceName);
+    snprintf(toParentModeTopic, sizeof(toParentGoalTempTopic),
+            "privSync/%s/toParent/mode", deviceName);
+    snprintf(toParentStateTopic, sizeof(toParentGoalTempTopic),
+            "privSync/%s/toParent/state", deviceName);
+    snprintf(toParentUnlockedTopic, sizeof(toParentGoalTempTopic),
+            "privSync/%s/toParent/unlocked", deviceName);
     
     Serial.println();
     Serial.println("Connecting to the network...");
@@ -445,13 +546,12 @@ void setupMQTT() {
         hvac.onModeCommand(onModeCommand);
         // hvac.setObjectId("TM2");
     
-        hvac.setRetain(true);
+        hvac.setRetain(false);
         hvac.setName(deviceName);
         hvac.setMinTemp(MIN_GOAL_TEMP);
         hvac.setMaxTemp(MAX_GOAL_TEMP);
         hvac.setTempStep(1);
-        hvac.setRetain(true);
-        // hvac.setTargetTemperature(22);
+        hvac.setTargetTemperature(61);
         hvac.setModes(HAHVAC::OffMode | HAHVAC::AutoMode | HAHVAC::HeatMode | HAHVAC::CoolMode | HAHVAC::FanOnlyMode | HAHVAC::DryMode);
         hvac.setMode(HAHVAC::OffMode);
         hvac.setAction(HAHVAC::IdleAction);
@@ -460,7 +560,7 @@ void setupMQTT() {
     xTaskCreatePinnedToCore(
         wifiMqttTask,       // Task function
         "WiFiMQTTTask",     // Name of the task
-        4096,               // Stack size (in bytes)
+        8192,               // Stack size (in bytes)
         NULL,               // Task input parameter
         1,                  // Priority
         &wifiMqttTaskHandle,// Task handle
@@ -480,4 +580,40 @@ void loopMQTT() {
         Serial.println("Wifi connected");
         printedWifiConnection = true;
     }
+}
+
+
+
+
+
+
+void sendAutoButtonClick() {
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(toParentModeTopic, String((int)MODE::Auto).c_str());
+    xSemaphoreGive(mqttMutex);
+}
+void sendManualButtonClick() {
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(toParentModeTopic, String((int)MODE::Manual).c_str());
+    xSemaphoreGive(mqttMutex);
+}
+void sendOffButtonClick() {
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(toParentModeTopic, String((int)MODE::Off).c_str());
+    xSemaphoreGive(mqttMutex);
+}
+void sendFanButtonClick() {
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(toParentStateTopic, String((int)STATE::Fan).c_str());
+    xSemaphoreGive(mqttMutex);
+}
+void sendCoolButtonClick() {
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(toParentStateTopic, String((int)STATE::Cool).c_str());
+    xSemaphoreGive(mqttMutex);
+}
+void sendHeatButtonClick() {
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(toParentStateTopic, String((int)STATE::Heat).c_str());
+    xSemaphoreGive(mqttMutex);
 }

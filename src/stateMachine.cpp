@@ -29,49 +29,18 @@ void setTemp(float newTemp) {
   storeTemp(newTemp);
 }
 void setTempGoal(float newTempGoal) {
-  if(whoAmI() == PEERTYPE::PARENT) {
-    // We are parent, so we set it no matter what. Local first after all...
-    if(lastTempGoal != newTempGoal) {
-      // updateStorageTempGoal(newTempGoal);
-    }
+  // If we are parent, update the data
+  if(whoAmI() == PEERTYPE::PARENT) {    
     lastTempGoal = tempGoal;
     tempGoal = newTempGoal;
-    GoalNeedsUpdate = true;
   }
 
   updateSharedTempGoal(newTempGoal);
-  storeTempGoal(newTempGoal);
 }
-
-void onHATempGoal(float newTempGoal) {
-  if(isFirstTempGoal) {
-    isFirstTempGoal = false;
-    return;
-  }
-  lastTempGoal = tempGoal;
-  tempGoal = newTempGoal;
-  HAGoalNeedsUpdate = true;
-}
-
-void onRemoteTempGoal(float newTempGoal) {
-  if(isFirstTempGoal) {
-    isFirstTempGoal = false;
-    return;
-  }
-  lastTempGoal = tempGoal;
-  tempGoal = newTempGoal;
-  GoalNeedsUpdate = true;
-  storeTempGoal(newTempGoal);
-}
-
-void onRemoteTemp(float newTemp) {
-  if(whoAmI() == PEERTYPE::PARENT) {
-    updateSharedTemp(newTemp);
-  }
+void childOnRemoteTemp(float newTemp) {
   temp = newTemp;
   TempNeedsUpdate = true;
 }
-
 // NOTE: This function is for the thermometers/sensors
 void onNewTempReading(float newTemp) {
   if(whoAmI() == PEERTYPE::PARENT) {
@@ -80,6 +49,29 @@ void onNewTempReading(float newTemp) {
   temp = newTemp;
   TempNeedsUpdate = true;
   storeTemp(newTemp);
+}
+
+void parentOnTempGoal(float newTempGoal) {
+  // Throwing out first packet on it, home assistant is weird...
+  if(isFirstTempGoal) {
+    isFirstTempGoal = false;
+    return;
+  }
+  lastTempGoal = tempGoal;
+  tempGoal = newTempGoal;
+  parentGoalNeedsUpdate = true;
+  storeTempGoal(newTempGoal);
+}
+void childOnTempGoal(float newTempGoal) {
+  // Throwing out first packet on it, home assistant is weird...
+  if(isFirstTempGoal) {
+    isFirstTempGoal = false;
+    return;
+  }
+  lastTempGoal = tempGoal;
+  tempGoal = newTempGoal;
+  childGoalNeedsUpdate = true;
+  storeTempGoal(newTempGoal);
 }
 
 MODE currentMode      = MODE::Off;
@@ -103,14 +95,24 @@ STATE getLastHeavyState() {
 }
 
 void setCurrentMode(MODE newMode) {
+  if(currentMode == newMode) {
+    return;
+  }
+
   Serial.print("Setting current mode to: ");
   Serial.println(newMode);
 
+  updateSharedMode(newMode);
   if(whoAmI() == PEERTYPE::PARENT) {
     currentMode = newMode;
+    storeMode(newMode);
   }
+}
+void setCurrentModeSilently(MODE newMode) {
+  Serial.print("Silently setting current mode to: ");
+  Serial.println(newMode);
 
-  updateSharedMode(newMode);
+  currentMode = newMode;
   storeMode(newMode);
 }
 
@@ -119,18 +121,20 @@ void setLastMode(MODE newMode) {
   storeLastMode(newMode);
 }
 
-void onRemoteMode(MODE newMode) {
-  //NOTE: This is a weird hack because whenever we startup it imediately sends a command controled from home assistant, regardless of previous state
+void parentOnRemoteMode(MODE newMode) {
+  //NOTE: This is a weird hack because whenever we startup it imediately sends a
+  //     command controled from home assistant, regardless of previous state
   if(isFirstMode) {
     isFirstMode = false;
     return;
   }
 
   currentMode = newMode;
-  ModeNeedsUpdate = true;
+  parentModeNeedsUpdate = true;
 }
-void onHARemoteMode(MODE newMode) {
-  //NOTE: This is a weird hack because whenever we startup it imediately sends a command controled from home assistant, regardless of previous state
+void childOnRemoteMode(MODE newMode) {
+  //NOTE: This is a weird hack because whenever we startup it imediately sends a
+  //     command controled from home assistant, regardless of previous state
   if(isFirstMode) {
     isFirstMode = false;
     return;
@@ -138,17 +142,16 @@ void onHARemoteMode(MODE newMode) {
 
   // We are parent, so we update the mode
   currentMode = newMode;
-  HAModeNeedsUpdate = true;
+  childModeNeedsUpdate = true;
 }
 
-void onRemoteState(STATE newState) {
+void parentOnRemoteState(STATE newState) {
   possibleState = newState;
-  StateNeedsUpdate = true;
+  parentStateNeedsUpdate = true;
 }
-void onHARemoteState(STATE newState) {
-  // We are parent
+void childOnRemoteState(STATE newState) {
   possibleState = newState;
-  HAStateNeedsUpdate = true;
+  childStateNeedsUpdate = true;
 }
 
 void setLastHeavyState(STATE newLastHeavyState) {
@@ -157,8 +160,9 @@ void setLastHeavyState(STATE newLastHeavyState) {
   storeLastHeavyState(newLastHeavyState);
 }
 void setCurrentState(STATE newState) {
-  if(currentState != newState) {
+  if(currentState == newState) {
     // updateStorageState(newState);
+    return;
   }
   lastState = currentState;
   currentState = newState;
@@ -177,13 +181,18 @@ void setCurrentState(STATE newState) {
 
 void setCurrentStateSilently(STATE newState) {
   // This is used to update the state without notifying network
-  if(currentState != newState) {
-    // updateStorageState(newState);
-  }
   lastState = currentState;
   currentState = newState;
   storeLastState(lastState);
   storeState(newState);
+
+  if(!isUnlocked()) {
+    if(newState != STATE::Idle) {
+      UIshowTimer();
+    }else {
+      UIhideTimer();
+    }
+  }
 }
 
 

@@ -737,6 +737,7 @@ void UIgoalSet(float value) {
     }
 
     if(getCurrentMode() != MODE::Auto) {
+        Serial.println("We are not in auto");
         return; // Only set goal temp in Auto mode
     }
 

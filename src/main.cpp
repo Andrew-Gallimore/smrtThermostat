@@ -79,12 +79,13 @@ void updateState(STATE selectedState) {
     return;
   }
 
+  
   if(whoAmI() == PEERTYPE::PARENT) {
     STATE preState = getCurrentState();
     Serial.print("# Was state (");
     Serial.print(STRING_FROM_STATE[preState]);
     Serial.println(").");
-    
+
     if(currentMode == MODE::Auto) {
       computeAutoState();
     }else if(currentMode == MODE::Manual) {
@@ -96,7 +97,6 @@ void updateState(STATE selectedState) {
     Serial.print(STRING_FROM_STATE[newState]);
     Serial.println(").");
 
-
     if(currentMode == MODE::Manual) {
       UIsetManualBTNState(newState);
     }
@@ -104,14 +104,11 @@ void updateState(STATE selectedState) {
     Serial.print("# Last Heavy is (");
     Serial.print(STRING_FROM_STATE[getLastHeavyState()]);
     Serial.println(").");
-
+  
     if(preState != newState) {
       updateUIfromStates(newState);
       setRelaysFromState(newState);
     }
-  }else {
-    Serial.println("Directly setting state from remote thermostat");
-    setCurrentState(selectedState);
   }
 }
 
@@ -160,30 +157,48 @@ void onTempDownButtonClick(lv_event_t* e) {
 }
 
 void onManualHeatClick() {  
-  if(getCurrentState() == STATE::Heat || getCurrentState() == STATE::AwaitingHeat) {
-    updateState(STATE::Idle);
+  if(whoAmI() == PEERTYPE::PARENT) {
+      if(getCurrentState() == STATE::Heat || getCurrentState() == STATE::AwaitingHeat) {
+        updateState(STATE::Idle);
+      }else {
+        updateState(STATE::Heat);
+      }
   }else {
-    updateState(STATE::Heat);
+    sendHeatButtonClick();
   }
 }
 
 void onManualCoolClick() {
-  if(getCurrentState() == STATE::Cool || getCurrentState() == STATE::AwaitingCool) {
-    updateState(STATE::Idle);
+  if(whoAmI() == PEERTYPE::PARENT) {
+    if(getCurrentState() == STATE::Cool || getCurrentState() == STATE::AwaitingCool) {
+      updateState(STATE::Idle);
+    }else {
+      updateState(STATE::Cool);
+    }
   }else {
-    updateState(STATE::Cool);
+    sendCoolButtonClick();
   }
+
 }
 
 void onManualFanClick() {
-  if(getCurrentState() == STATE::Fan) {
-    updateState(STATE::Idle);
+  if(whoAmI() == PEERTYPE::PARENT) {
+    if(getCurrentState() == STATE::Fan) {
+      updateState(STATE::Idle);
+    }else {
+      updateState(STATE::Fan);
+    }
   }else {
-    updateState(STATE::Fan);
+    sendFanButtonClick();
   }
+    
 }
 
 void onOFFButtonClick() {
+  if(whoAmI() == PEERTYPE::CHILD) {
+    sendOffButtonClick();
+  }
+
   printf("Off button selected\n");
   UIhideDelay();
   UIhideUnlock();
@@ -237,9 +252,7 @@ void onONButtonClick() {
   }
 }
 
-void onManualButtonClick() {
-  printf("Manual mode selected\n");
-  setCurrentMode(MODE::Manual);
+void manualButtonExecution() {
   checkState();
   UIgoalSet("");
   UIshowMenuButton();
@@ -249,10 +262,18 @@ void onManualButtonClick() {
   UIsetManualBTNState(getCurrentState());
 }
 
-void onAutoButtonClick() {
-  printf("Auto mode selected\n");
-  setCurrentMode(MODE::Auto);
+void onManualButtonClick() {
+  printf("Manual mode selected\n");
+  if(whoAmI() == PEERTYPE::PARENT) {
+    setCurrentMode(MODE::Manual);
+  }else {
+    sendManualButtonClick();
+  }
 
+  manualButtonExecution();
+}
+
+void autoButtonExecution() {
   const float currentGoal = getTempGoal();
   UIgoalSet(currentGoal);
 
@@ -264,6 +285,17 @@ void onAutoButtonClick() {
   UIhideOnButton();
   UIhideManualBTNs();
   checkState();
+}
+
+void onAutoButtonClick() {
+  printf("Auto mode selected\n");
+  if(whoAmI() == PEERTYPE::PARENT) {
+    setCurrentMode(MODE::Auto);
+  }else {
+    sendAutoButtonClick();
+  }
+
+  autoButtonExecution();
 }
 
 void onLockButtonClick() {
@@ -285,14 +317,20 @@ void onSwitchOnClick() {
 // ===== UI UPDATING CALLBACKS =====
 // Safe for cross-task use
 volatile bool flag_offButton = false;
-volatile bool GoalNeedsUpdate = false;
-volatile bool HAGoalNeedsUpdate = false;
+volatile bool flag_manualButton = false;
+volatile bool flag_autoButton = false;
+volatile bool flag_manualHeatButton = false;
+volatile bool flag_manualCoolButton = false;
+volatile bool flag_manualFanButton = false;
+
+volatile bool parentGoalNeedsUpdate = false;
+volatile bool childGoalNeedsUpdate = false;
 volatile bool TempNeedsUpdate = false;
-volatile bool ModeNeedsUpdate = false;
-volatile bool HAModeNeedsUpdate = false;
+volatile bool parentModeNeedsUpdate = false;
+volatile bool childModeNeedsUpdate = false;
 volatile STATE possibleState = STATE::Idle;
-volatile bool StateNeedsUpdate = false;
-volatile bool HAStateNeedsUpdate = false;
+volatile bool parentStateNeedsUpdate = false;
+volatile bool childStateNeedsUpdate = false;
 
 void onNewUIState() {
   STATE newState = getCurrentState();
@@ -443,19 +481,44 @@ void loop() {
     flag_offButton = false;
     onOFFButtonClick();
   }
+  if(flag_manualButton) {
+    flag_manualButton = false;
+    onManualButtonClick();
+  }
+  if(flag_autoButton) {
+    flag_autoButton = false;
+    onAutoButtonClick();
+  }
+  if(flag_manualHeatButton) {
+    flag_manualHeatButton = false;
+    onManualHeatClick();
+  }
+  if(flag_manualCoolButton) {
+    flag_manualCoolButton = false;
+    onManualCoolClick();
+  }
+  if(flag_manualFanButton) {
+    flag_manualFanButton = false;
+    onManualFanClick();
+  }
 
-  if(GoalNeedsUpdate) {
+
+  if(parentGoalNeedsUpdate) {
     float newTempGoal = getTempGoal();
+    Serial.print("[PARENT] New temp goal: ");
+    Serial.println(newTempGoal);
+
     UIgoalSet(newTempGoal);
     checkState();
-    GoalNeedsUpdate = false;
+    parentGoalNeedsUpdate = false;
   }
-  if(HAGoalNeedsUpdate) {
-    // Passing on to home assistant
+  if(childGoalNeedsUpdate) {
     float newTempGoal = getTempGoal();
-    setTempGoal(newTempGoal);
-    checkState();
-    HAGoalNeedsUpdate = false;
+    Serial.print("[CHILD] New temp goal: ");
+    Serial.println(newTempGoal);
+
+    UIgoalSet(newTempGoal);
+    childGoalNeedsUpdate = false;
   }
 
 
@@ -467,7 +530,7 @@ void loop() {
   }
 
 
-  if(ModeNeedsUpdate) {
+  if(parentModeNeedsUpdate) {
     MODE newMode = getCurrentMode();
     if(newMode == MODE::Manual) {
       onManualButtonClick();
@@ -482,31 +545,40 @@ void loop() {
         Serial.println("Turning off thermostat");
       }
     }
-
-    ModeNeedsUpdate = false;
+    parentModeNeedsUpdate = false;
   }
-  if(HAModeNeedsUpdate) {
-    // Passing on to home assistant
+  if(childModeNeedsUpdate) {
+    // Comes from peer, so needs passing on to home assistant
     MODE newMode = getCurrentMode();
-    setCurrentMode(newMode);
-    HAModeNeedsUpdate = false;
+    setCurrentModeSilently(newMode);
+    if(newMode == MODE::Manual) {
+      manualButtonExecution();
+    } else if(newMode == MODE::Auto) {
+      autoButtonExecution();
+    } else if(newMode == MODE::Off) {
+      if(getCurrentMode() == MODE::Off) {
+        onOFFButtonClick();
+        Serial.println("Turning on thermostat");
+      }else {
+        onONButtonClick();
+        Serial.println("Turning off thermostat");
+      }
+    }
+
+    childModeNeedsUpdate = false;
   }
 
-  if(StateNeedsUpdate) {
-    if(whoAmI() == PEERTYPE::PARENT) {
-      // We are parent, so we update the state
-      updateState(possibleState);
-    }else {
-      setCurrentStateSilently(possibleState);
-      UIsetManualBTNState(possibleState);
-      updateUIfromStates(possibleState);
-    }
-    StateNeedsUpdate = false;
-  }
-  if(HAStateNeedsUpdate) {
-    // Passing on to home assistant
+  if(parentStateNeedsUpdate) {
     updateState(possibleState);
-    HAStateNeedsUpdate = false;
+    parentStateNeedsUpdate = false;
+  }
+  if(childStateNeedsUpdate) {
+    // Passing on to home assistant
+    setCurrentStateSilently(possibleState);
+    UIsetManualBTNState(possibleState);
+    updateUIfromStates(possibleState);
+
+    childStateNeedsUpdate = false;
   }
 
   // float temp123 = getBTHomeTemperature();

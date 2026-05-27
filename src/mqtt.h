@@ -28,7 +28,7 @@
 //     Serial.println(temperatureFloat);
 
 //     sender->setTargetTemperature(temperature); // report target temperature back to the HA panel
-//     onRemoteTempGoal(temperatureFloat); // Calling callback function
+//     childOnRemoteTempGoal(temperatureFloat); // Calling callback function
 // }
 
 // void onPowerCommand(bool state, HAHVAC* sender) {

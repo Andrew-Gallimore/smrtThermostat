@@ -32,14 +32,14 @@ extern void UIhideTimer();
 // Forward declarations for main.cpp
 void onOFFButtonClick();
 extern volatile bool flag_offButton;
-extern volatile bool GoalNeedsUpdate;
-extern volatile bool HAGoalNeedsUpdate;
+extern volatile bool parentGoalNeedsUpdate;
+extern volatile bool childGoalNeedsUpdate;
 extern volatile bool TempNeedsUpdate;
-extern volatile bool ModeNeedsUpdate;
-extern volatile bool HAModeNeedsUpdate;
+extern volatile bool parentModeNeedsUpdate;
+extern volatile bool childModeNeedsUpdate;
 extern volatile STATE possibleState;
-extern volatile bool StateNeedsUpdate;
-extern volatile bool HAStateNeedsUpdate;
+extern volatile bool parentStateNeedsUpdate;
+extern volatile bool childStateNeedsUpdate;
 
 
 
@@ -56,8 +56,8 @@ void setTempGoal(float newTempGoal);
 
 void onNewTempReading(float temp);
 
-void onRemoteTempGoal(float newGoalTemp);
-void onHATempGoal(float newTempGoal);
+void parentOnTempGoal(float newTempGoal);
+void childOnTempGoal(float newTempGoal);
 
 MODE getLastMode();
 MODE getCurrentMode();
@@ -65,13 +65,14 @@ STATE getCurrentState();
 STATE getLastHeavyState();
 
 void setCurrentMode(MODE newMode);
+void setCurrentModeSilently(MODE newMode);
 void setLastMode(MODE newMode);
 void setLastHeavyState(STATE newLastHeavyState);
 void setCurrentState(STATE newState);
 void setCurrentStateSilently(STATE newState);
 
-void onRemoteMode(MODE newMode);
-void onHARemoteMode(MODE newMode);
+void parentOnRemoteMode(MODE newMode);
+void childOnRemoteMode(MODE newMode);
 
 void resetHeavyEndedTimer();
 long int timeSinceLastHeavyState();
