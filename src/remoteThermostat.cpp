@@ -12,7 +12,9 @@ HAMqtt mqtt(client, device);
 
 bool wifiCredentialsChanged = false;
 
-char deviceName[19] = "Testing_Thermostat";
+// char deviceName[28] = "Community_Hall_Thermostat_1";
+// char deviceName[28] = "Community_Hall_Thermostat_2";
+char deviceName[28] = "Testing_Thermostat";
 char HAaddr[12] = "10.1.10.132";
 
 // Intializing HVAC object 
@@ -104,46 +106,82 @@ void updateSharedMode(MODE mode) {
 }
 
 void updateSharedState(STATE state) {
-    // Sending to homeassistant or remote thermostat
     MODE mode = getCurrentMode();
+
     if(whoAmI() == PEERTYPE::PARENT) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildStateTopic, String((int)state).c_str());
         xSemaphoreGive(mqttMutex);
-        
-        if(state == STATE::Idle) {
-            if(mode == MODE::Manual) {
-                hvac.setMode(HAHVAC::DryMode); // Assuming Manual Idle is equivalent to DryMode mode
+
+        // =========================
+        // HVAC MODE
+        // =========================
+
+        if(mode == MODE::Off) {
+
+            hvac.setMode(HAHVAC::OffMode);
+
+        } else if(mode == MODE::Auto) {
+
+            hvac.setMode(HAHVAC::AutoMode);
+
+        } else if(mode == MODE::Manual) {
+
+            switch(state) {
+
+                case STATE::Heat:
+                case STATE::AwaitingHeat:
+                    hvac.setMode(HAHVAC::HeatMode);
+                    break;
+
+                case STATE::Cool:
+                case STATE::AwaitingCool:
+                    hvac.setMode(HAHVAC::CoolMode);
+                    break;
+
+                case STATE::Fan:
+                    hvac.setMode(HAHVAC::FanOnlyMode);
+                    break;
+
+                case STATE::Idle:
+                    hvac.setMode(HAHVAC::DryMode);
+                    break;
             }
-            hvac.setAction(HAHVAC::IdleAction);
-        } else if (state == STATE::Heat) {
-            if(mode == MODE::Manual) {
-                hvac.setMode(HAHVAC::HeatMode);
-            }
-            hvac.setAction(HAHVAC::HeatingAction);
-        } else if (state == STATE::AwaitingHeat) {
-            if(mode == MODE::Manual) {
-                hvac.setMode(HAHVAC::HeatMode);
-            }
-            hvac.setAction(HAHVAC::IdleAction);
-        } else if (state == STATE::Cool) {
-            if(mode == MODE::Manual) {
-                hvac.setMode(HAHVAC::CoolMode);
-            }
-            hvac.setAction(HAHVAC::CoolingAction);
-        } else if (state == STATE::AwaitingCool) {
-            if(mode == MODE::Manual) {
-                hvac.setMode(HAHVAC::CoolMode);
-            }
-            hvac.setAction(HAHVAC::IdleAction);
-        } else if (state == STATE::Fan) {
-            hvac.setAction(HAHVAC::FanAction);
-            hvac.setMode(HAHVAC::FanOnlyMode);
         }
-    }else {
-        // mqtt.publish(toParentStateTopic, String((int)state).c_str());
+
+        // =========================
+        // HVAC ACTION
+        // =========================
+
+        if(mode == MODE::Off) {
+
+            hvac.setAction(HAHVAC::OffAction);
+
+        } else {
+
+            switch(state) {
+
+                case STATE::Heat:
+                    hvac.setAction(HAHVAC::HeatingAction);
+                    break;
+
+                case STATE::Cool:
+                    hvac.setAction(HAHVAC::CoolingAction);
+                    break;
+
+                case STATE::Fan:
+                    hvac.setAction(HAHVAC::FanAction);
+                    break;
+
+                case STATE::Idle:
+                case STATE::AwaitingHeat:
+                case STATE::AwaitingCool:
+                    hvac.setAction(HAHVAC::IdleAction);
+                    break;
+            }
+        }
     }
-    
+
     Serial.print("Updating shared state to: ");
     Serial.println(state);
 }

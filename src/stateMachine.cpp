@@ -106,6 +106,7 @@ void setCurrentMode(MODE newMode) {
   updateSharedMode(newMode);
   if(whoAmI() == PEERTYPE::PARENT) {
     currentMode = newMode;
+    updateSharedState(getCurrentState());
     storeMode(newMode);
   }
 }
@@ -337,6 +338,10 @@ void computeManualState(STATE selectedState) {
           case STATE::Idle:
             setCurrentState(STATE::Idle);
             break;
+          // Selected state:
+          case STATE::Heat:
+            setCurrentState(STATE::AwaitingHeat);
+            break;
           // Selected state
           case STATE::Cool:
             setCurrentState(STATE::AwaitingCool);
@@ -390,6 +395,10 @@ void computeManualState(STATE selectedState) {
           // Selected state
           case STATE::Heat:
             setCurrentState(STATE::AwaitingHeat);
+            break;
+          // Selected state
+          case STATE::Cool:
+            setCurrentState(STATE::AwaitingCool);
             break;
           // Selected state
           case STATE::Fan:

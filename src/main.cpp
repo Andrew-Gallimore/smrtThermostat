@@ -74,8 +74,14 @@ void updateState(STATE selectedState) {
   Serial.println("# Updating State...");
   MODE currentMode = getCurrentMode();
   if(currentMode == MODE::Off) {
-    Serial.println("# In Idle for OFF mode");
-    setCurrentState(STATE::Idle);
+    Serial.println("# Setting state to Idle for OFF mode");
+    if(getCurrentState() == STATE::Heat || getCurrentState() == STATE::Cool) {
+      setLastHeavyState(getCurrentState());
+      setCurrentState(STATE::Idle);
+      resetHeavyEndedTimer();
+    }else {
+      setCurrentState(STATE::Idle);
+    }
     return;
   }
   
@@ -237,6 +243,9 @@ void onONButtonClick() {
   if(isUnlocked()) {
     UIshowUnlock();
   }
+
+  storeNetworkSSID("GraceChurch");
+  storeNetworkPWD("Caught6575alley");
 
   // Restoring last mode
   MODE lastMode = getLastMode();
@@ -541,13 +550,8 @@ void loop() {
     } else if(newMode == MODE::Auto) {
       onAutoButtonClick();
     } else if(newMode == MODE::Off) {
-      if(getCurrentMode() == MODE::Off) {
-        onOFFButtonClick();
-        Serial.println("Turning on thermostat");
-      }else {
-        onONButtonClick();
-        Serial.println("Turning off thermostat");
-      }
+      onOFFButtonClick();
+      Serial.println("Turning off thermostat");
     }
     parentModeNeedsUpdate = false;
   }
@@ -560,13 +564,8 @@ void loop() {
     } else if(newMode == MODE::Auto) {
       autoButtonExecution();
     } else if(newMode == MODE::Off) {
-      if(getCurrentMode() == MODE::Off) {
-        onOFFButtonClick();
-        Serial.println("Turning on thermostat");
-      }else {
-        onONButtonClick();
-        Serial.println("Turning off thermostat");
-      }
+      onOFFButtonClick();
+      Serial.println("Turning off thermostat");
     }
 
     childModeNeedsUpdate = false;

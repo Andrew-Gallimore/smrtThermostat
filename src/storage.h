@@ -12,6 +12,8 @@
 #define GPIO_RELAY2  2
 #define GPIO_RELAY3  1
 
+// const int MIN_GOAL_TEMP = 65;
+// const int MAX_GOAL_TEMP = 85;
 const int MIN_GOAL_TEMP = 40;
 const int MAX_GOAL_TEMP = 110;
 
@@ -25,6 +27,8 @@ enum PEERTYPE {
 // AC:27:6E:A4:A9:70
 const uint8_t CHILD_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0D, 0xB7, 0xE4};
 const uint8_t PARENT_ADDR[] = {0xAC, 0x27, 0x6E, 0xA4, 0xA9, 0x70};
+// const uint8_t CHILD_ADDR[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+// const uint8_t PARENT_ADDR[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 const bool JUST_TREAT_ME_AS_PARENT = false; // If set, bypasses mac address check
 // const uint8_t PARENT_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0E, 0xD0, 0xD4};
 // DC:B4:D9:04:90:24
