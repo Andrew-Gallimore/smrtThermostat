@@ -577,7 +577,7 @@ void setupMQTT() {
 
     device.setUniqueId(mac, sizeof(mac));
     device.setName(deviceName);
-    device.setSoftwareVersion("1.2.5");
+    device.setSoftwareVersion("1.3");
 
     if (whoAmI() == PEERTYPE::PARENT) {
         // Assigning callbacks
