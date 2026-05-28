@@ -244,9 +244,6 @@ void onONButtonClick() {
     UIshowUnlock();
   }
 
-  storeNetworkSSID("GraceChurch");
-  storeNetworkPWD("Caught6575alley");
-
   // Restoring last mode
   MODE lastMode = getLastMode();
   if(lastMode == MODE::Manual) {
@@ -384,9 +381,13 @@ void setup()
   // NOTE: Needs to happen before initializing storage
   //    because I think it messes with SPI stuff
   setupDisplay();
+
+  delay(500);
   
   initializeStorage();
-
+  
+  delay(500);
+  
   // This starts the BLE scan task for thermometers
   startBLESensorScan();
   

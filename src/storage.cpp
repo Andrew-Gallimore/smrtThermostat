@@ -13,6 +13,7 @@ bool variablesLoaded = false;
 bool networkConfigLoaded = false;
 bool thermometersConfigLoaded = false;
 TaskHandle_t storeVariablesTaskHandle = NULL;
+TaskHandle_t sdRecoveryTaskHandle = NULL;
 
 // State stored variables
 unsigned long lastStorageTime   = 0;
@@ -84,6 +85,7 @@ void writeFile(const char* filename, const char* data) {
 
   if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(1000)) == pdTRUE) {
 
+    SD.remove(filename);
     File dataFile = SD.open(filename, FILE_WRITE);
 
     if (dataFile) {
@@ -122,6 +124,7 @@ void readFile(const char* filename, void (*parserCallback)(const char*)) {
 
     if (!dataFile) {
       Serial.printf("Failed to open %s\n", filename);
+      xSemaphoreGive(sdMutex);
       return;
     }
 
@@ -241,9 +244,14 @@ void readNetworkConfig() {
 void readThermometerConfig() {
   storage_thermometers.clear();
 
+  if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(1000)) != pdTRUE) {
+    return;
+  }
+
   File file = SD.open("/thermometers.txt");
   if (!file) {
-      return;
+    xSemaphoreGive(sdMutex);
+    return;
   }
   while (file.available()) {
     String line = file.readStringUntil('\n');
@@ -255,54 +263,142 @@ void readThermometerConfig() {
   }
   file.close();
 
+  xSemaphoreGive(sdMutex);
+
   thermometersConfigLoaded = true;
 }
 
 
-void initSDCard() {
-    if(!DO_SD_CARD) {
-        sdCardInitialized = false;
-        return;
+
+
+void runSDreading() {
+  if(sdCardInitialized) {
+      Serial.println("Reading stored variables...");
+      readStates();
+      readNetworkConfig();
+      readThermometerConfig();
+  } else {
+      Serial.println("SD Card not initialized, skipping reading stored variables");
+  }
+
+  // Create task to store variables periodically
+  if (storeVariablesTaskHandle == NULL) {
+    xTaskCreatePinnedToCore(
+        storeVariablesTask,
+        "StoreVariablesTask",
+        4096,
+        NULL,
+        1,
+        &storeVariablesTaskHandle,
+        1
+    );
+  }
+}
+
+bool initSDCardOnce() {
+
+    if (xSemaphoreTake(sdMutex, pdMS_TO_TICKS(2000)) != pdTRUE) {
+        return false;
     }
+
+    SD.end();
+    sdSPI.end();
+
+    delay(50);
 
     sdSPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI, SD_CS);
 
-    if (!SD.begin(SD_CS, sdSPI)) {
-        Serial.println("SD Card failed or not present");
-        sdCardInitialized = false;
-        return;
+    delay(50);
+
+    bool ok = SD.begin(SD_CS, sdSPI, 4000000);
+
+    if (!ok) {
+        xSemaphoreGive(sdMutex);
+        return false;
     }
-    sdCardInitialized = true;
-    Serial.println("SD Card initialized");
+
+    uint8_t cardType = SD.cardType();
+
+    if (cardType == CARD_NONE) {
+        SD.end();
+        xSemaphoreGive(sdMutex);
+        return false;
+    }
+
+    xSemaphoreGive(sdMutex);
+
+    return true;
 }
+
+bool initSDCardWithRetry(int maxRetries = 5) {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+
+        Serial.printf(
+            "Initializing SD card (attempt %d/%d)\n",
+            attempt,
+            maxRetries
+        );
+
+        if (initSDCardOnce()) {
+            Serial.println("SD card initialized");
+            sdCardInitialized = true;
+            return true;
+        }
+
+        Serial.println("SD init failed");
+
+        delay(500 * attempt); // progressive backoff
+    }
+
+    sdCardInitialized = false;
+    return false;
+}
+
+void sdRecoveryTask(void* parameter) {
+  while(true) {
+    if(!sdCardInitialized) {
+      Serial.println("Attempting SD recovery...");
+
+      if(initSDCardWithRetry(3)) {
+        Serial.println("SD recovered!");
+
+        runSDreading();
+
+        sdRecoveryTaskHandle = NULL;
+        vTaskDelete(NULL);
+      }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(15000));
+  }
+}
+
 void initializeStorage() {
     if(!DO_SD_CARD) {
         return;
     }
+    
     sdMutex = xSemaphoreCreateMutex();
 
-    initSDCard();
-
-    if(sdCardInitialized) {
-        Serial.println("Reading stored variables...");
-        readStates();
-        readNetworkConfig();
-        readThermometerConfig();
-    } else {
-        Serial.println("SD Card not initialized, skipping reading stored variables");
+    if(!initSDCardWithRetry(5)) {
+      if (sdRecoveryTaskHandle == NULL) {
+        // Try to recover...
+        xTaskCreatePinnedToCore(
+          sdRecoveryTask,
+          "SDRecovery",
+          4096,
+          NULL,
+          1,
+          &sdRecoveryTaskHandle,
+          1
+        );
+      }
+    }else {
+      // It worked!
+      runSDreading();
     }
-
-    // Create task to store variables periodically
-    xTaskCreatePinnedToCore(
-        storeVariablesTask,       // Task function
-        "StoreVariablesTask",     // Name of the task
-        4096,                     // Stack size (in bytes)
-        NULL,                     // Task input parameter
-        1,                        // Priority
-        &storeVariablesTaskHandle,// Task handle
-        1                         // Core 1
-    );
 }
+
 
 
 

@@ -13,8 +13,9 @@ HAMqtt mqtt(client, device);
 bool wifiCredentialsChanged = false;
 
 // char deviceName[28] = "Community_Hall_Thermostat_1";
-// char deviceName[28] = "Community_Hall_Thermostat_2";
-char deviceName[28] = "Testing_Thermostat";
+char deviceName[26] = "Community_Hall_Thermostat";
+// char deviceName[21] = "Sanctuary_Thermostat";
+// char deviceName[19] = "Testing_Thermostat";
 char HAaddr[12] = "10.1.10.132";
 
 // Intializing HVAC object 
