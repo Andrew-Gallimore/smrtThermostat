@@ -136,13 +136,13 @@ void setLastHeavyState(STATE newLastHeavyState) {
   storeLastHeavyState(newLastHeavyState);
 }
 void setCurrentState(STATE newState) {
+  updateSharedState(newState);
   if(currentState == newState) {
     // updateStorageState(newState);
     return;
   }
   lastState = currentState;
   currentState = newState;
-  updateSharedState(newState);
   storeLastState(lastState);
   storeState(newState);
 

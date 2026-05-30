@@ -176,7 +176,7 @@ void UIinitializeDelay() {
         long int remaining = (getDelay(getLastHeavyState(), getCurrentState()) - timeSinceLastHeavyState()) / 1000;
         if(remaining < 0) remaining = 0;
 
-        if(delayVisible && remaining == 0) {
+        if(delayVisible && v == 12 && remaining == 0) {
             // This checks if the state in the statemachine can change after the timer
             checkState();
         }

@@ -13,9 +13,9 @@ HAMqtt mqtt(client, device);
 bool wifiCredentialsChanged = false;
 
 // char deviceName[28] = "Community_Hall_Thermostat_1";
-char deviceName[26] = "Community_Hall_Thermostat";
+// char deviceName[26] = "Community_Hall_Thermostat";
 // char deviceName[21] = "Sanctuary_Thermostat";
-// char deviceName[19] = "Testing_Thermostat";
+char deviceName[19] = "Testing_Thermostat";
 char HAaddr[12] = "10.1.10.132";
 
 // Intializing HVAC object 
@@ -119,17 +119,12 @@ void updateSharedState(STATE state) {
         // =========================
 
         if(mode == MODE::Off) {
-
+            Serial.println("Sending off mode...");
             hvac.setMode(HAHVAC::OffMode);
-
         } else if(mode == MODE::Auto) {
-
             hvac.setMode(HAHVAC::AutoMode);
-
         } else if(mode == MODE::Manual) {
-
             switch(state) {
-
                 case STATE::Heat:
                 case STATE::AwaitingHeat:
                     hvac.setMode(HAHVAC::HeatMode);
@@ -155,13 +150,10 @@ void updateSharedState(STATE state) {
         // =========================
 
         if(mode == MODE::Off) {
-
+            Serial.println("Sending off state...");
             hvac.setAction(HAHVAC::OffAction);
-
         } else {
-
             switch(state) {
-
                 case STATE::Heat:
                     hvac.setAction(HAHVAC::HeatingAction);
                     break;
@@ -215,7 +207,7 @@ void onModeCommand(HAHVAC::Mode mode, HAHVAC* sender) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Off).c_str());
         xSemaphoreGive(mqttMutex);
-        sender->setCurrentAction(HAHVAC::OffAction);
+        // sender->setCurrentAction(HAHVAC::OffAction);
         
     }else if (mode == HAHVAC::AutoMode) {
         Serial.println("auto");
@@ -262,7 +254,7 @@ void onModeCommand(HAHVAC::Mode mode, HAHVAC* sender) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
         xSemaphoreGive(mqttMutex);
-        sender->setCurrentAction(HAHVAC::IdleAction);
+        // sender->setCurrentAction(HAHVAC::IdleAction);
     } else {
         Serial.print("Wasn't planned for... ");
         Serial.println(mode);
@@ -444,6 +436,23 @@ void wifiMqttTask(void* parameter) {
     vTaskDelay(1000 / portTICK_PERIOD_MS);
     vTaskDelay(1000 / portTICK_PERIOD_MS);   // Delay to reduce task load
 
+    // Generating hostname for the network to see
+    uint8_t mac[6];
+    esp_read_mac(mac, ESP_MAC_WIFI_STA);
+
+    const char* deviceName = "MyDevice";
+
+    char hostname[64];
+    snprintf(
+        hostname,
+        sizeof(hostname),
+        "%s_%02X%02X%02X%02X%02X%02X",
+        deviceName,
+        mac[0], mac[1], mac[2],
+        mac[3], mac[4], mac[5]
+    );
+
+    WiFi.setHostname(hostname);
     Serial.println("Starting WiFi STA connection to router...");
 
     int attempts = 0;
@@ -577,7 +586,7 @@ void setupMQTT() {
 
     device.setUniqueId(mac, sizeof(mac));
     device.setName(deviceName);
-    device.setSoftwareVersion("1.3");
+    device.setSoftwareVersion("1.3.5");
 
     if (whoAmI() == PEERTYPE::PARENT) {
         // Assigning callbacks

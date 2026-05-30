@@ -222,12 +222,11 @@ void onOFFButtonClick() {
   UIgoalSet("Off");
   UIshowOnButton();
 
-  if(getCurrentState() != STATE::Idle) {
-    updateState(STATE::Idle);
-  }
   setRelaysFromState(STATE::Idle);
   setLastMode(getCurrentMode());
   setCurrentMode(MODE::Off);
+
+  updateState(STATE::Idle);
   setRelaysFromState(STATE::Idle);
 
   // Has to happen after state changes, otherwise the state machine might switch it back on immediately
