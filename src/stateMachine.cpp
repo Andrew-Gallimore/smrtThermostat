@@ -7,7 +7,6 @@
 float temp            = 70; // overwritten by storage
 float tempGoal        = 70; // overwritten by storage
 float lastTempGoal    = 70;
-bool  isFirstTempGoal = true;
 float tempMargin      = 1.0;
 
 float getTemp() {
@@ -53,22 +52,12 @@ void onNewTempReading(float newTemp) {
 }
 
 void parentOnTempGoal(float newTempGoal) {
-  // Throwing out first packet on it, home assistant is weird...
-  if(isFirstTempGoal) {
-    isFirstTempGoal = false;
-    return;
-  }
   lastTempGoal = tempGoal;
   tempGoal = newTempGoal;
   parentGoalNeedsUpdate = true;
   storeTempGoal(newTempGoal);
 }
 void childOnTempGoal(float newTempGoal) {
-  // Throwing out first packet on it, home assistant is weird...
-  if(isFirstTempGoal) {
-    isFirstTempGoal = false;
-    return;
-  }
   lastTempGoal = tempGoal;
   tempGoal = newTempGoal;
   childGoalNeedsUpdate = true;
@@ -77,7 +66,6 @@ void childOnTempGoal(float newTempGoal) {
 
 MODE currentMode      = MODE::Off;
 MODE lastMode         = MODE::Auto; // overwritten by storage
-bool isFirstMode      = true;
 STATE currentState    = STATE::Idle;
 STATE lastState       = STATE::Idle;
 STATE lastHeavyState  = STATE::Idle; // overwritten by storage
@@ -124,24 +112,10 @@ void setLastMode(MODE newMode) {
 }
 
 void parentOnRemoteMode(MODE newMode) {
-  //NOTE: This is a weird hack because whenever we startup it imediately sends a
-  //     command controled from home assistant, regardless of previous state
-  if(isFirstMode) {
-    isFirstMode = false;
-    return;
-  }
-
   currentMode = newMode;
   parentModeNeedsUpdate = true;
 }
 void childOnRemoteMode(MODE newMode) {
-  //NOTE: This is a weird hack because whenever we startup it imediately sends a
-  //     command controled from home assistant, regardless of previous state
-  if(isFirstMode) {
-    isFirstMode = false;
-    return;
-  }
-
   // We are parent, so we update the mode
   currentMode = newMode;
   childModeNeedsUpdate = true;
