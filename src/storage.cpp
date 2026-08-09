@@ -70,6 +70,18 @@ char* getParentMac() {
   return macStr;
 }
 
+char myMacStr[13];
+char* getMyMac() {
+  uint8_t Imac[6];
+  esp_read_mac(Imac, ESP_MAC_WIFI_STA);
+  snprintf(myMacStr, sizeof(myMacStr),
+          "%02x%02x%02x%02x%02x%02x",
+          Imac[0], Imac[1], Imac[2],
+          Imac[3], Imac[4], Imac[5]);
+
+  return myMacStr;
+}
+
 #define SD_CS     42   // Chip Select for the SD card
 #define SPI_SCK   48   // SPI Clock
 #define SPI_MOSI  47   // SPI Data (MOSI)

@@ -521,6 +521,7 @@ void loop() {
     Serial.print("[PARENT] New temp goal: ");
     Serial.println(newTempGoal);
 
+    setTempGoal(newTempGoal);
     UIgoalSet(newTempGoal);
     checkState();
     parentGoalNeedsUpdate = false;
@@ -529,7 +530,8 @@ void loop() {
     float newTempGoal = getTempGoal();
     Serial.print("[CHILD] New temp goal: ");
     Serial.println(newTempGoal);
-
+    
+    setTempGoal(newTempGoal);
     UIgoalSet(newTempGoal);
     childGoalNeedsUpdate = false;
   }

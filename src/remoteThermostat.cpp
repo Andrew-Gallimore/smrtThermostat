@@ -12,15 +12,15 @@ HAMqtt mqtt(client, device);
 
 bool wifiCredentialsChanged = false;
 
-// char deviceName[28] = "Community_Hall_Thermostat_1";
-// char deviceName[26] = "Community_Hall_Thermostat";
-// char deviceName[21] = "Sanctuary_Thermostat";
-char deviceName[19] = "Testing_Thermostat";
+// char deviceName[28] = "Community_Hall_1";
+// char deviceName[17] = "Community_Hall_2";
+char deviceName[10] = "Sanctuary";
+// char deviceName[19] = "Testing_Thermostat";
 char HAaddr[12] = "10.1.10.132";
 
 // Intializing HVAC object 
 HAHVAC hvac(
-  deviceName,
+  getMyMac(),
   HAHVAC::TargetTemperatureFeature | HAHVAC::PowerFeature | HAHVAC::ModesFeature | HAHVAC::ActionFeature
 );
 
@@ -440,16 +440,15 @@ void wifiMqttTask(void* parameter) {
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
 
-    const char* deviceName = "MyDevice";
-
     char hostname[64];
     snprintf(
         hostname,
         sizeof(hostname),
-        "%s_%02X%02X%02X%02X%02X%02X",
+        "%s-%02X%02X%02X",
         deviceName,
-        mac[0], mac[1], mac[2],
-        mac[3], mac[4], mac[5]
+        mac[0],
+        mac[2],
+        mac[4]
     );
 
     WiFi.setHostname(hostname);

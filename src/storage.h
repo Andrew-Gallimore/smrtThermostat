@@ -37,6 +37,7 @@ const bool JUST_TREAT_ME_AS_PARENT = true; // If set, bypasses mac address check
 PEERTYPE whoAmI();
 
 char* getParentMac();
+char* getMyMac();
 
 // void updateStorageMode(MODE newMode);
 // void updateStorageTempGoal(float newTempGoal);

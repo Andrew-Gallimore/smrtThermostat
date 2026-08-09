@@ -261,20 +261,20 @@ void computeManualState(STATE selectedState) {
   if(getMinTemp() > temp) {
     // Start heating
     if(currentState == STATE::Heat || currentState == STATE::Cool) {
-      setLastHeavyState(currentState);
-      setCurrentState(STATE::AwaitingHeat);
-      resetHeavyEndedTimer();
+      // setLastHeavyState(currentState);
+      // setCurrentState(STATE::AwaitingHeat);
+      // resetHeavyEndedTimer();
     }else {
-      setCurrentState(STATE::AwaitingHeat);
+      // setCurrentState(STATE::AwaitingHeat);
     }
   }else if(getMaxTemp() < temp) {
     // Start cooling
     if(currentState == STATE::Heat || currentState == STATE::Cool) {
-      setLastHeavyState(currentState);
-      setCurrentState(STATE::AwaitingCool);
-      resetHeavyEndedTimer();
+      // setLastHeavyState(currentState);
+      // setCurrentState(STATE::AwaitingCool);
+      // resetHeavyEndedTimer();
     }else {
-      setCurrentState(STATE::AwaitingCool);
+      // setCurrentState(STATE::AwaitingCool);
     }
   }else {
     // We are within the good temps, so we can do standard temp changes
@@ -479,20 +479,20 @@ void computeAutoState() {
   if(getMinTemp() > temp) {
     // Start heating
     if(currentState == STATE::Heat || currentState == STATE::Cool) {
-      setLastHeavyState(currentState);
-      setCurrentState(STATE::AwaitingHeat);
-      resetHeavyEndedTimer();
+      // setLastHeavyState(currentState);
+      // setCurrentState(STATE::AwaitingHeat);
+      // resetHeavyEndedTimer();
     }else {
-      setCurrentState(STATE::AwaitingHeat);
+      // setCurrentState(STATE::AwaitingHeat);
     }
   }else if(getMaxTemp() < temp) {
     // Start cooling
     if(currentState == STATE::Heat || currentState == STATE::Cool) {
-      setLastHeavyState(currentState);
-      setCurrentState(STATE::AwaitingCool);
-      resetHeavyEndedTimer();
+      // setLastHeavyState(currentState);
+      // setCurrentState(STATE::AwaitingCool);
+      // resetHeavyEndedTimer();
     }else {
-      setCurrentState(STATE::AwaitingCool);
+      // setCurrentState(STATE::AwaitingCool);
     }
   }else {
     // We are within the good temps, so we can do standard temp changes
