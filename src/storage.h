@@ -18,7 +18,7 @@ const int MIN_GOAL_TEMP = 40;
 const int MAX_GOAL_TEMP = 110;
 
 
-enum PEERTYPE {
+enum ROLE {
   PARENT,
   CHILD
 };
@@ -34,7 +34,7 @@ const bool JUST_TREAT_ME_AS_PARENT = true; // If set, bypasses mac address check
 // const uint8_t PARENT_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0E, 0xD0, 0xD4};
 // DC:B4:D9:04:90:24
 
-PEERTYPE whoAmI();
+ROLE whoAmI();
 
 char* getParentMac();
 char* getMyMac();

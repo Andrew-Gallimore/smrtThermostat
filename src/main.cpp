@@ -5,11 +5,15 @@
 #include "./displaySetup.h"
 #include "./ui.h"
 #include "./menu.h"
-#include "./stateMachine.h"
+// #include "./stateMachine.h"
 #include "./remoteThermostat.h"
 #include "./storage.h"
 #include "./thermometers.h"
 #include "./locking.h"
+
+#include "./core/ThermostatModel.h"
+
+ThermostatModel* model;
 
 
 void setRelaysFromState(STATE newState) {
@@ -85,7 +89,7 @@ void updateState(STATE selectedState) {
     return;
   }
   
-  if(whoAmI() == PEERTYPE::PARENT) {
+  if(whoAmI() == ROLE::PARENT) {
     STATE preState = getCurrentState();
     Serial.print("# Was state (");
     Serial.print(STRING_FROM_STATE[preState]);
@@ -114,12 +118,6 @@ void updateState(STATE selectedState) {
       updateUIfromStates(newState);
       setRelaysFromState(newState);
     }
-  }
-}
-
-void checkState() {
-  if(whoAmI() == PEERTYPE::PARENT) {
-    updateState(getCurrentState());
   }
 }
 
@@ -167,7 +165,7 @@ void onTempDownButtonClick(lv_event_t* e) {
 }
 
 void onManualHeatClick() {  
-  if(whoAmI() == PEERTYPE::PARENT) {
+  if(whoAmI() == ROLE::PARENT) {
       if(getCurrentState() == STATE::Heat || getCurrentState() == STATE::AwaitingHeat) {
         updateState(STATE::Idle);
       }else {
@@ -179,7 +177,7 @@ void onManualHeatClick() {
 }
 
 void onManualCoolClick() {
-  if(whoAmI() == PEERTYPE::PARENT) {
+  if(whoAmI() == ROLE::PARENT) {
     if(getCurrentState() == STATE::Cool || getCurrentState() == STATE::AwaitingCool) {
       updateState(STATE::Idle);
     }else {
@@ -192,7 +190,7 @@ void onManualCoolClick() {
 }
 
 void onManualFanClick() {
-  if(whoAmI() == PEERTYPE::PARENT) {
+  if(whoAmI() == ROLE::PARENT) {
     if(getCurrentState() == STATE::Fan) {
       updateState(STATE::Idle);
     }else {
@@ -205,7 +203,7 @@ void onManualFanClick() {
 }
 
 void onOFFButtonClick() {
-  if(whoAmI() == PEERTYPE::CHILD) {
+  if(whoAmI() == ROLE::CHILD) {
     sendOffButtonClick();
   }
 
@@ -273,7 +271,7 @@ void manualButtonExecution() {
 
 void onManualButtonClick() {
   printf("Manual mode selected\n");
-  if(whoAmI() == PEERTYPE::PARENT) {
+  if(whoAmI() == ROLE::PARENT) {
     setCurrentMode(MODE::Manual);
   }else {
     sendManualButtonClick();
@@ -298,7 +296,7 @@ void autoButtonExecution() {
 
 void onAutoButtonClick() {
   printf("Auto mode selected\n");
-  if(whoAmI() == PEERTYPE::PARENT) {
+  if(whoAmI() == ROLE::PARENT) {
     setCurrentMode(MODE::Auto);
   }else {
     sendAutoButtonClick();

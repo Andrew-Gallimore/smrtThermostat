@@ -40,7 +40,7 @@ std::vector<String> storage_thermometers = {};
 SemaphoreHandle_t sdMutex;
 
 
-PEERTYPE whoAmI() {
+ROLE whoAmI() {
   // Getting my mac address
   if(!myMacFound) {
       esp_read_mac(myMac, ESP_MAC_WIFI_STA);
@@ -48,14 +48,14 @@ PEERTYPE whoAmI() {
   }
 
   if(JUST_TREAT_ME_AS_PARENT) {
-    return PEERTYPE::PARENT;
+    return ROLE::PARENT;
   }
 
   // Telling if we are a parent or child device
   if(memcmp(myMac, PARENT_ADDR, sizeof(myMac)) == 0) {
-    return PEERTYPE::PARENT;
+    return ROLE::PARENT;
   } else {
-    return PEERTYPE::CHILD;
+    return ROLE::CHILD;
   }
 }
 

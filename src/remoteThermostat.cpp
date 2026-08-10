@@ -47,7 +47,7 @@ char toParentUnlockedTopic[64];
 
 void updateSharedTemp(float temp) {
     // Sending to homeassistant or remote thermostat
-    if(whoAmI() == PEERTYPE::PARENT) {
+    if(whoAmI() == ROLE::PARENT) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildTempTopic, String(temp).c_str());
         xSemaphoreGive(mqttMutex);
@@ -62,7 +62,7 @@ void updateSharedTemp(float temp) {
 
 void updateSharedTempGoal(float goalTemp) {
     // Sending to homeassistant or remote thermostat
-    if(whoAmI() == PEERTYPE::PARENT) {
+    if(whoAmI() == ROLE::PARENT) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildGoalTempTopic, String(goalTemp).c_str());
         xSemaphoreGive(mqttMutex);
@@ -77,7 +77,7 @@ void updateSharedTempGoal(float goalTemp) {
 
 void updateSharedMode(MODE mode) {
     // Sending to homeassistant or remote thermostat
-    if(whoAmI() == PEERTYPE::PARENT) {
+    if(whoAmI() == ROLE::PARENT) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)mode).c_str());
         xSemaphoreGive(mqttMutex);
@@ -109,7 +109,7 @@ void updateSharedMode(MODE mode) {
 void updateSharedState(STATE state) {
     MODE mode = getCurrentMode();
 
-    if(whoAmI() == PEERTYPE::PARENT) {
+    if(whoAmI() == ROLE::PARENT) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildStateTopic, String((int)state).c_str());
         xSemaphoreGive(mqttMutex);
@@ -283,7 +283,7 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
     Serial.print("Data: ");
     Serial.println(msg);
 
-    if(whoAmI() == PEERTYPE::CHILD) {
+    if(whoAmI() == ROLE::CHILD) {
         // HERE, we are child, ...
 
         if(strcmp(topic, toChildGoalTempTopic) == 0) {
@@ -371,7 +371,7 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
 void onMqttConnected() {
     Serial.println("Connected to the broker!");
 
-    if(whoAmI() == PEERTYPE::PARENT) {
+    if(whoAmI() == ROLE::PARENT) {
         // To recive messages from child devices
         mqtt.subscribe(toParentGoalTempTopic);
         mqtt.subscribe(toParentTempTopic);
@@ -587,7 +587,7 @@ void setupMQTT() {
     device.setName(deviceName);
     device.setSoftwareVersion("1.3.5");
 
-    if (whoAmI() == PEERTYPE::PARENT) {
+    if (whoAmI() == ROLE::PARENT) {
         // Assigning callbacks
         hvac.onTargetTemperatureCommand(onGoalTemperatureCommand);
         hvac.onModeCommand(onModeCommand);
