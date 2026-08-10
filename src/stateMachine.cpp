@@ -597,18 +597,18 @@ void setCurrentStateSilently(STATE newState) {
 // }
 
 
-void initializeStateMachine() {
-  // Get stored variables
-  ulong  storedTime     = getStoredTimestamp();
-  // Checking our time is less than stored time (meaning we restarted since last storage)
-  if(storedTime > 0 && millis() < storedTime) {
-    Serial.println("Restoring stored variables...");
+// void initializeStateMachine() {
+//   // Get stored variables
+//   ulong  storedTime     = getStoredTimestamp();
+//   // Checking our time is less than stored time (meaning we restarted since last storage)
+//   if(storedTime > 0 && millis() < storedTime) {
+//     Serial.println("Restoring stored variables...");
 
-    setTempGoal(getStoredTempGoal());
-    setTemp(getStoredTemp());
-    lastMode       = getStoredMode(); // We start in off mode, when it turns of it restores last mode
-    lastHeavyState = getStoredLastHeavyState();
+//     setTempGoal(getStoredTempGoal());
+//     setTemp(getStoredTemp());
+//     lastMode       = getStoredMode(); // We start in off mode, when it turns of it restores last mode
+//     lastHeavyState = getStoredLastHeavyState();
 
-    Serial.println("Stored variables restored.");
-  }
-}
+//     Serial.println("Stored variables restored.");
+//   }
+// }
