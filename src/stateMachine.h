@@ -1,88 +1,88 @@
-#ifndef STATE_MACHINE_H
-#define STATE_MACHINE_H
+// #ifndef STATE_MACHINE_H
+// #define STATE_MACHINE_H
 
-enum MODE {
-  Off,
-  Auto,
-  Manual
-};
+// enum MODE {
+//   Off,
+//   Auto,
+//   Manual
+// };
 
-enum STATE {
-  Idle,
-  AwaitingHeat,
-  Heat,
-  AwaitingCool,
-  Cool,
-  Fan,
-};
+// enum STATE {
+//   Idle,
+//   AwaitingHeat,
+//   Heat,
+//   AwaitingCool,
+//   Cool,
+//   Fan,
+// };
 
-static const char* STRING_FROM_STATE[6] = {
-  "Idle",
-  "AwaitingHeat",
-  "Heat",
-  "AwaitingCool",
-  "Cool",
-  "Fan"
-};
+// static const char* STRING_FROM_STATE[6] = {
+//   "Idle",
+//   "AwaitingHeat",
+//   "Heat",
+//   "AwaitingCool",
+//   "Cool",
+//   "Fan"
+// };
 
-// Forward declarations for ui.cpp
-extern void UIshowTimer();
-extern void UIhideTimer();
+// // Forward declarations for ui.cpp
+// extern void UIshowTimer();
+// extern void UIhideTimer();
 
-// Forward declarations for main.cpp
-void onOFFButtonClick();
-extern volatile bool flag_offButton;
-extern volatile bool parentGoalNeedsUpdate;
-extern volatile bool childGoalNeedsUpdate;
-extern volatile bool TempNeedsUpdate;
-extern volatile bool parentModeNeedsUpdate;
-extern volatile bool childModeNeedsUpdate;
-extern volatile STATE possibleState;
-extern volatile bool parentStateNeedsUpdate;
-extern volatile bool childStateNeedsUpdate;
-
-
+// // Forward declarations for main.cpp
+// void onOFFButtonClick();
+// extern volatile bool flag_offButton;
+// extern volatile bool parentGoalNeedsUpdate;
+// extern volatile bool childGoalNeedsUpdate;
+// extern volatile bool TempNeedsUpdate;
+// extern volatile bool parentModeNeedsUpdate;
+// extern volatile bool childModeNeedsUpdate;
+// extern volatile STATE possibleState;
+// extern volatile bool parentStateNeedsUpdate;
+// extern volatile bool childStateNeedsUpdate;
 
 
 
-// Function declarations
-void initializeStateMachine();
 
-float getTemp();
-float getTempGoal();
-float getTempMargin();
-void setTemp(float newTemp);
-void setTempGoal(float newTempGoal);
 
-void onNewTempReading(float temp);
+// // Function declarations
+// void initializeStateMachine();
 
-void parentOnTempGoal(float newTempGoal);
-void childOnTempGoal(float newTempGoal);
+// float getTemp();
+// float getTempGoal();
+// float getTempMargin();
+// void setTemp(float newTemp);
+// void setTempGoal(float newTempGoal);
 
-MODE getLastMode();
-MODE getCurrentMode();
-STATE getCurrentState();
-STATE getLastHeavyState();
+// void onNewTempReading(float temp);
 
-void setCurrentMode(MODE newMode);
-void setCurrentModeSilently(MODE newMode);
-void setLastMode(MODE newMode);
-void setLastHeavyState(STATE newLastHeavyState);
-void setCurrentState(STATE newState);
-void setCurrentStateSilently(STATE newState);
+// void parentOnTempGoal(float newTempGoal);
+// void childOnTempGoal(float newTempGoal);
 
-void parentOnRemoteMode(MODE newMode);
-void childOnRemoteMode(MODE newMode);
+// MODE getLastMode();
+// MODE getCurrentMode();
+// STATE getCurrentState();
+// STATE getLastHeavyState();
 
-void resetHeavyEndedTimer();
-long int timeSinceLastHeavyState();
-long int getDelay(STATE fromState, STATE toState);
+// void setCurrentMode(MODE newMode);
+// void setCurrentModeSilently(MODE newMode);
+// void setLastMode(MODE newMode);
+// void setLastHeavyState(STATE newLastHeavyState);
+// void setCurrentState(STATE newState);
+// void setCurrentStateSilently(STATE newState);
 
-void newInteraction();
-long int getResetTimeLimit();
-long int timeSinceLastInteraction();
+// void parentOnRemoteMode(MODE newMode);
+// void childOnRemoteMode(MODE newMode);
 
-void computeManualState(STATE selectedState);
-void computeAutoState();
+// void resetHeavyEndedTimer();
+// long int timeSinceLastHeavyState();
+// long int getDelay(STATE fromState, STATE toState);
 
-#endif // STATE_MACHINE_H
+// void newInteraction();
+// long int getResetTimeLimit();
+// long int timeSinceLastInteraction();
+
+// void computeManualState(STATE selectedState);
+// void computeAutoState();
+
+// #endif // STATE_MACHINE_H

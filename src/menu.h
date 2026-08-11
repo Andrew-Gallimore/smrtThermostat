@@ -12,7 +12,8 @@
 #include "./icons/unlock_36.h"
 #include "./icons/settings_36.h"
 
-#include "./stateMachine.h"
+// #include "./stateMachine.h"
+#include "./core/core-structs.h"
 #include "./ui.h"
 #include "./locking.h"
 #include "./remoteThermostat.h"

@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <vector>
 #include <string>
-#include "stateMachine.h"
+#include "core/core-structs.h"
 // #include "thermometers.h"
 
 #define GPIO_RELAY1  40
@@ -16,12 +16,6 @@
 // const int MAX_GOAL_TEMP = 85;
 const int MIN_GOAL_TEMP = 40;
 const int MAX_GOAL_TEMP = 110;
-
-
-enum ROLE {
-  PARENT,
-  CHILD
-};
 
 // 8C:BF:EA:0D:B7:E4
 // AC:27:6E:A4:A9:70

@@ -18,17 +18,18 @@
 #include "./icons/unlock_color_30.h"
 
 #include "./colorHelper.h"
-#include "stateMachine.h"
+#include "./core/ThermostatModel.h"
 #include "locking.h"
 
 // Forward declarations for callback functions defined in main.cpp
+extern ThermostatModel* model;
+
 void onTempUpButtonClick(lv_event_t* e);
 void onTempDownButtonClick(lv_event_t* e);
 void onManualHeatClick();
 void onManualCoolClick();
 void onManualFanClick();
 void onSwitchOnClick();
-void checkState();
 
 
 // Regular declarations...

@@ -14,39 +14,7 @@
 #include "./core/ThermostatModel.h"
 
 ThermostatModel* model;
-
-
-void setRelaysFromState(STATE newState) {
-  // Set relays based on the new state
-  switch (newState) {
-    case STATE::Heat:
-      // Set relays for heating
-      digitalWrite(GPIO_RELAY1, HIGH); // Turn on heating relay (pin 40)
-      digitalWrite(GPIO_RELAY2, LOW);  // Ensure cooling relay is off
-      digitalWrite(GPIO_RELAY3, HIGH);  // Ensure fan relay is off
-      break;
-    case STATE::Cool:
-      // Set relays for cooling
-      digitalWrite(GPIO_RELAY1, LOW);  // Ensure heating relay is off
-      digitalWrite(GPIO_RELAY2, HIGH); // Turn on cooling relay (pin 2)
-      digitalWrite(GPIO_RELAY3, HIGH);  // Ensure fan relay is off
-      break;
-    case STATE::Fan:
-      // Set relays for fan
-      digitalWrite(GPIO_RELAY1, LOW);  // Ensure heating relay is off
-      digitalWrite(GPIO_RELAY2, LOW);  // Ensure cooling relay is off
-      digitalWrite(GPIO_RELAY3, HIGH); // Turn on fan relay (pin 1)
-      break;
-    case STATE::Idle:
-    case STATE::AwaitingCool:
-    case STATE::AwaitingHeat:
-      // Set relays for idle
-      digitalWrite(GPIO_RELAY1, LOW);  // Ensure heating relay is off
-      digitalWrite(GPIO_RELAY2, LOW);  // Ensure cooling relay is off
-      digitalWrite(GPIO_RELAY3, LOW);  // Ensure fan relay is off
-      break;
-  }
-}
+SyncManager* syncManager;
 
 
 void updateUIfromStates(STATE state) {
@@ -74,53 +42,6 @@ void updateUIfromStates(STATE state) {
   }
 }
 
-void updateState(STATE selectedState) {
-  Serial.println("# Updating State...");
-  MODE currentMode = getCurrentMode();
-  if(currentMode == MODE::Off) {
-    Serial.println("# Setting state to Idle for OFF mode");
-    if(getCurrentState() == STATE::Heat || getCurrentState() == STATE::Cool) {
-      setLastHeavyState(getCurrentState());
-      setCurrentState(STATE::Idle);
-      resetHeavyEndedTimer();
-    }else {
-      setCurrentState(STATE::Idle);
-    }
-    return;
-  }
-  
-  if(whoAmI() == ROLE::PARENT) {
-    STATE preState = getCurrentState();
-    Serial.print("# Was state (");
-    Serial.print(STRING_FROM_STATE[preState]);
-    Serial.println(").");
-
-    if(currentMode == MODE::Auto) {
-      computeAutoState();
-    }else if(currentMode == MODE::Manual) {
-      computeManualState(selectedState);
-    }
-
-    STATE newState = getCurrentState();
-    Serial.print("# Now is (");
-    Serial.print(STRING_FROM_STATE[newState]);
-    Serial.println(").");
-
-    if(currentMode == MODE::Manual) {
-      UIsetManualBTNState(newState);
-    }
-
-    Serial.print("# Last Heavy is (");
-    Serial.print(STRING_FROM_STATE[getLastHeavyState()]);
-    Serial.println(").");
-  
-    if(preState != newState) {
-      updateUIfromStates(newState);
-      setRelaysFromState(newState);
-    }
-  }
-}
-
 
 
 
@@ -130,17 +51,18 @@ void onTempUpButtonClick(lv_event_t* e) {
   if (code == LV_EVENT_CLICKED) {
     // Handle button click event
     printf("autoBTN1 clicked\n");
-    const float currentTemp = getTempGoal();
+    const float currentTemp = model->getGoalTemp();
     printf("Current temperature: %.1f\n", currentTemp);
 
     if(currentTemp < MAX_GOAL_TEMP) {
-        setTempGoal(currentTemp + 1.0);
+        model->setGoalTemp(currentTemp + 1.0);
         UIgoalSet(currentTemp + 1.0);
     }else {
-        setTempGoal(MAX_GOAL_TEMP);
+        model->setGoalTemp(MAX_GOAL_TEMP);
         UIgoalSet(MAX_GOAL_TEMP);
     }
-    checkState();
+    
+    model->update();
 
   }
 }
@@ -150,26 +72,27 @@ void onTempDownButtonClick(lv_event_t* e) {
   if (code == LV_EVENT_CLICKED) {
     // Handle button click event
     printf("autoBTN2 clicked\n");
-    const float currentTemp = getTempGoal();
+    const float currentTemp = model->getGoalTemp();
     printf("Current temperature: %.1f\n", currentTemp);
 
     if(currentTemp > MIN_GOAL_TEMP) {
-      setTempGoal(currentTemp - 1.0);
+      model->setGoalTemp(currentTemp - 1.0);
       UIgoalSet(currentTemp - 1.0);
     }else {
-      setTempGoal(MIN_GOAL_TEMP);
+      model->setGoalTemp(currentTemp - 1.0);
       UIgoalSet(MIN_GOAL_TEMP);
     }
-    checkState();
+    
+    model->update();
   }
 }
 
 void onManualHeatClick() {  
   if(whoAmI() == ROLE::PARENT) {
-      if(getCurrentState() == STATE::Heat || getCurrentState() == STATE::AwaitingHeat) {
-        updateState(STATE::Idle);
+      if(model->getCurrentState() == STATE::Heat || model->getCurrentState() == STATE::AwaitingHeat) {
+        model->requestManualState(STATE::Idle);
       }else {
-        updateState(STATE::Heat);
+        model->requestManualState(STATE::Heat);
       }
   }else {
     sendHeatButtonClick();
@@ -178,10 +101,10 @@ void onManualHeatClick() {
 
 void onManualCoolClick() {
   if(whoAmI() == ROLE::PARENT) {
-    if(getCurrentState() == STATE::Cool || getCurrentState() == STATE::AwaitingCool) {
-      updateState(STATE::Idle);
+    if(model->getCurrentState() == STATE::Cool || model->getCurrentState() == STATE::AwaitingCool) {
+      model->requestManualState(STATE::Idle);
     }else {
-      updateState(STATE::Cool);
+      model->requestManualState(STATE::Cool);
     }
   }else {
     sendCoolButtonClick();
@@ -191,10 +114,10 @@ void onManualCoolClick() {
 
 void onManualFanClick() {
   if(whoAmI() == ROLE::PARENT) {
-    if(getCurrentState() == STATE::Fan) {
-      updateState(STATE::Idle);
+    if(model->getCurrentState() == STATE::Fan) {
+      model->requestManualState(STATE::Idle);
     }else {
-      updateState(STATE::Fan);
+      model->requestManualState(STATE::Fan);
     }
   }else {
     sendFanButtonClick();
@@ -220,12 +143,7 @@ void onOFFButtonClick() {
   UIgoalSet("Off");
   UIshowOnButton();
 
-  setRelaysFromState(STATE::Idle);
-  setLastMode(getCurrentMode());
-  setCurrentMode(MODE::Off);
-
-  updateState(STATE::Idle);
-  setRelaysFromState(STATE::Idle);
+  model->setMode(MODE::Off);
 
   // Has to happen after state changes, otherwise the state machine might switch it back on immediately
   UIhideTimer();
@@ -242,65 +160,47 @@ void onONButtonClick() {
   }
 
   // Restoring last mode
-  MODE lastMode = getLastMode();
-  if(lastMode == MODE::Manual) {
-    onManualButtonClick();
-  } else if(lastMode == MODE::Auto) {
-    onAutoButtonClick();
-  } else if(lastMode == MODE::Off) {
-    // If last mode was Off, we set it to Auto
-    onAutoButtonClick();
-  }
+  model->restoreLastMode();
 
   // Restoring delay message
-  STATE state = getCurrentState();
+  STATE state = model->getCurrentState();
   if(state == STATE::AwaitingCool || state == STATE::AwaitingHeat) {
     UIshowDelay();
   }
 }
 
 void manualButtonExecution() {
-  checkState();
   UIgoalSet("");
   UIshowMenuButton();
   UIhideAutoBTNs();
   UIhideOnButton();
   UIshowManualBTNs();
-  UIsetManualBTNState(getCurrentState());
+  UIsetManualBTNState(model->getCurrentState());
 }
 
 void onManualButtonClick() {
   printf("Manual mode selected\n");
-  if(whoAmI() == ROLE::PARENT) {
-    setCurrentMode(MODE::Manual);
-  }else {
-    sendManualButtonClick();
-  }
+  model->setMode(MODE::Manual);
 
   manualButtonExecution();
 }
 
 void autoButtonExecution() {
-  const float currentGoal = getTempGoal();
+  const float currentGoal = model->getGoalTemp();
   UIgoalSet(currentGoal);
 
-  const STATE currentState = getCurrentState();
-  updateUIfromStates(currentState);
+  const STATE currentState = model->getCurrentState();
+  // updateUIfromStates(currentState);
 
   UIshowAutoBTNs();
   UIshowMenuButton();
   UIhideOnButton();
   UIhideManualBTNs();
-  checkState();
 }
 
 void onAutoButtonClick() {
   printf("Auto mode selected\n");
-  if(whoAmI() == ROLE::PARENT) {
-    setCurrentMode(MODE::Auto);
-  }else {
-    sendAutoButtonClick();
-  }
+  model->setMode(MODE::Auto);
 
   autoButtonExecution();
 }
@@ -339,10 +239,6 @@ volatile STATE possibleState = STATE::Idle;
 volatile bool parentStateNeedsUpdate = false;
 volatile bool childStateNeedsUpdate = false;
 
-void onNewUIState() {
-  STATE newState = getCurrentState();
-  updateUIfromStates(newState);
-}
 
 
 
@@ -390,8 +286,24 @@ void setup()
   
   setupMQTT();
 
+  // Create the thermostat model and managers
+  syncManager = new SyncManager();
+  model = new ThermostatModel(ROLE::PARENT, *syncManager);
+
   // NOTE: Should come after storage initialization
-  initializeStateMachine();
+  MODE lastMode = getStoredLastMode();
+  float lastTempGoal = getStoredTempGoal();
+  float lastTemp = getStoredTemp();
+  STATE lastHeavyState = getStoredLastHeavyState();
+  model->initializeFromStorage(lastMode, lastTempGoal, lastTemp, lastHeavyState);
+
+  // Subscribe to model updates
+  model->subscribe([](const ThermostatState& ts) {
+    // Update the UI based on the new state
+    Serial.print("\%\%\% State changed to: ");
+    Serial.println((int)ts.state);
+    updateUIfromStates(ts.state);
+  });
 
 
   // Disable scrolling on the main screen
@@ -469,9 +381,7 @@ void setup()
   UIhideMenuButton();
   UIgoalSet("Off");
   UIshowOnButton();
-  // updateState(STATE::Idle);
-  setCurrentMode(MODE::Off);
-  setRelaysFromState(STATE::Idle);
+  // setCurrentMode(MODE::Off);
   
 
   printf("Setup done\n");
@@ -515,36 +425,34 @@ void loop() {
 
 
   if(parentGoalNeedsUpdate) {
-    float newTempGoal = getTempGoal();
+    float newTempGoal = model->getGoalTemp();
     Serial.print("[PARENT] New temp goal: ");
     Serial.println(newTempGoal);
 
-    setTempGoal(newTempGoal);
+    model->setGoalTemp(newTempGoal);
     UIgoalSet(newTempGoal);
-    checkState();
     parentGoalNeedsUpdate = false;
   }
   if(childGoalNeedsUpdate) {
-    float newTempGoal = getTempGoal();
+    float newTempGoal = model->getGoalTemp();
     Serial.print("[CHILD] New temp goal: ");
     Serial.println(newTempGoal);
     
-    setTempGoal(newTempGoal);
+    model->setGoalTemp(newTempGoal);
     UIgoalSet(newTempGoal);
     childGoalNeedsUpdate = false;
   }
 
 
   if(TempNeedsUpdate) {
-    float newTemp = getTemp();
+    float newTemp = model->getTemp();
     UItempSet(newTemp);
-    checkState();
     TempNeedsUpdate = false;
   }
 
 
   if(parentModeNeedsUpdate) {
-    MODE newMode = getCurrentMode();
+    MODE newMode = model->getMode();
     if(newMode == MODE::Manual) {
       onManualButtonClick();
     } else if(newMode == MODE::Auto) {
@@ -557,8 +465,7 @@ void loop() {
   }
   if(childModeNeedsUpdate) {
     // Comes from peer, so needs passing on to home assistant
-    MODE newMode = getCurrentMode();
-    setCurrentModeSilently(newMode);
+    MODE newMode = model->getMode();
     if(newMode == MODE::Manual) {
       manualButtonExecution();
     } else if(newMode == MODE::Auto) {
@@ -572,12 +479,11 @@ void loop() {
   }
 
   if(parentStateNeedsUpdate) {
-    updateState(possibleState);
+    // updateState(possibleState);
     parentStateNeedsUpdate = false;
   }
   if(childStateNeedsUpdate) {
     // Passing on to home assistant
-    setCurrentStateSilently(possibleState);
     UIsetManualBTNState(possibleState);
     updateUIfromStates(possibleState);
 

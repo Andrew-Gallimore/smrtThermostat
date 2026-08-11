@@ -173,18 +173,17 @@ void UIinitializeDelay() {
     lv_anim_init(&delayMsgAnim);
     lv_anim_set_var(&delayMsgAnim, delayMsg);
     lv_anim_set_exec_cb(&delayMsgAnim, [](void* obj, int32_t v) {
-        long int remaining = (getDelay(getLastHeavyState(), getCurrentState()) - timeSinceLastHeavyState()) / 1000;
-        if(remaining < 0) remaining = 0;
+        long int remainingS = model->getRemainingDelay() / 1000;
 
-        if(delayVisible && v == 12 && remaining == 0) {
+        if(delayVisible && v == 12 && remainingS == 0) {
             // This checks if the state in the statemachine can change after the timer
-            checkState();
+            model->update();
         }
         
-        if (remaining >= 60) {
-            lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "%ld min...", remaining / 60);
+        if (remainingS >= 60) {
+            lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "%ld min...", remainingS / 60);
         } else {
-            lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "%ld sec...", remaining);
+            lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "%ld sec...", remainingS);
         }
     });
     lv_anim_set_values(&delayMsgAnim, 0, 12);
@@ -353,7 +352,7 @@ void UIinitializeTimer() {
             /60 to get hours
             so /3600000 ms to hours
         */
-        double remainingMin = (getResetTimeLimit() - timeSinceLastInteraction()) / 60000.0;
+        double remainingMin = model->getRemainingInteractionTime() / 60000.0;
         if(remainingMin < 0) remainingMin = 0;
 
         // Serial.println(remainingMin);
@@ -386,7 +385,7 @@ void UIinitializeTimer() {
 
         if(timerVisible && remainingMin == 0) {
             // This checks if the state in the statemachine can change after the timer
-            checkState();
+            model->update();
 
             // If its unlocked, it won't automatically hide when turning off
             if(isUnlocked()) {
@@ -658,7 +657,7 @@ void UItempSet(float value) {
     lv_obj_add_flag(tempErrorText, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(tempSpinner, LV_OBJ_FLAG_HIDDEN);
 
-    if(getCurrentMode() == MODE::Auto) {
+    if(model->getMode() == MODE::Auto) {
         // If in Auto mode, show the auto buttons
         UIshowAutoBTNs();
     }
@@ -736,7 +735,7 @@ void UIgoalSet(float value) {
         return;
     }
 
-    if(getCurrentMode() != MODE::Auto) {
+    if(model->getMode() != MODE::Auto) {
         Serial.println("We are not in auto");
         return; // Only set goal temp in Auto mode
     }

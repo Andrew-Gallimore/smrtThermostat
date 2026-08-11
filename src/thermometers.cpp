@@ -92,7 +92,8 @@ void recaculateTemp() {
     
     if (count > 0) {
         avgTemp = sum / count;
-        onNewTempReading(avgTemp);
+        // onNewTempReading(avgTemp);
+        // TODO: Replace with model method
     }
 }
 

@@ -1,5 +1,4 @@
 #include "remoteThermostat.h"
-#include "stateMachine.h"
 
 TaskHandle_t wifiMqttTaskHandle = NULL;
 
@@ -87,7 +86,7 @@ void updateSharedMode(MODE mode) {
         } else if (mode == MODE::Auto) {
             hvac.setMode(HAHVAC::AutoMode);
         } else if (mode == MODE::Manual) {
-            STATE currentState = getCurrentState();
+            STATE currentState = model->getCurrentState();
             if(currentState == STATE::Cool || currentState == STATE::AwaitingCool) {
                 hvac.setMode(HAHVAC::CoolMode);
             } else if (currentState == STATE::Heat || currentState == STATE::AwaitingHeat) {
@@ -107,7 +106,7 @@ void updateSharedMode(MODE mode) {
 }
 
 void updateSharedState(STATE state) {
-    MODE mode = getCurrentMode();
+    MODE mode = model->getMode();
 
     if(whoAmI() == ROLE::PARENT) {
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
@@ -196,14 +195,16 @@ void onGoalTemperatureCommand(HANumeric temperature, HAHVAC* sender) {
     xSemaphoreTake(mqttMutex, portMAX_DELAY);
     mqtt.publish(toChildGoalTempTopic, String(temperatureFloat).c_str());
     xSemaphoreGive(mqttMutex);
-    parentOnTempGoal(temperatureFloat); // Calling callback function
+    // parentOnTempGoal(temperatureFloat); // Calling callback function
+    // TODO: Replace with model method
 }
 
 void onModeCommand(HAHVAC::Mode mode, HAHVAC* sender) {
     Serial.print("Mode: ");
     if (mode == HAHVAC::OffMode) {
         Serial.println("off");
-        parentOnRemoteMode(MODE::Off);
+        // parentOnRemoteMode(MODE::Off);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Off).c_str());
         xSemaphoreGive(mqttMutex);
@@ -211,46 +212,54 @@ void onModeCommand(HAHVAC::Mode mode, HAHVAC* sender) {
         
     }else if (mode == HAHVAC::AutoMode) {
         Serial.println("auto");
-        parentOnRemoteMode(MODE::Auto);
+        // parentOnRemoteMode(MODE::Auto);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Auto).c_str());
         xSemaphoreGive(mqttMutex);
     } else if (mode == HAHVAC::CoolMode) {
         Serial.println("cool");
-        parentOnRemoteMode(MODE::Manual);
+        // parentOnRemoteMode(MODE::Manual);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
         xSemaphoreGive(mqttMutex);
 
-        parentOnRemoteState(STATE::Cool);
+        // parentOnRemoteState(STATE::Cool);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildStateTopic, String((int)STATE::Cool).c_str());
         xSemaphoreGive(mqttMutex);
     } else if (mode == HAHVAC::HeatMode) {
         Serial.println("heat");
-        parentOnRemoteMode(MODE::Manual);
+        // parentOnRemoteMode(MODE::Manual);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
         xSemaphoreGive(mqttMutex);
 
-        parentOnRemoteState(STATE::Heat);
+        // parentOnRemoteState(STATE::Heat);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildStateTopic, String((int)STATE::Heat).c_str());
         xSemaphoreGive(mqttMutex);
     }else if (mode == HAHVAC::FanOnlyMode) {
         Serial.println("fan");
-        parentOnRemoteMode(MODE::Manual);
+        // parentOnRemoteMode(MODE::Manual);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
         xSemaphoreGive(mqttMutex);
 
-        parentOnRemoteState(STATE::Fan);
+        // parentOnRemoteState(STATE::Fan);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildStateTopic, String((int)STATE::Fan).c_str());
         xSemaphoreGive(mqttMutex);
     } else if (mode == HAHVAC::DryMode) {
         Serial.println("(dry) manual");
-        parentOnRemoteMode(MODE::Manual);
+        // parentOnRemoteMode(MODE::Manual);
+        // TODO: Replace with model method
         xSemaphoreTake(mqttMutex, portMAX_DELAY);
         mqtt.publish(toChildModeTopic, String((int)MODE::Manual).c_str());
         xSemaphoreGive(mqttMutex);
@@ -292,24 +301,28 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
             float newGoalTemp = atof(msg);
     
             if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
-                childOnTempGoal(newGoalTemp);
+                // childOnTempGoal(newGoalTemp);
+                // TODO: Replace with model method
             };
         }else if(strcmp(topic, toChildTempTopic) == 0) {
             Serial.println("Received current temperature update from remote thermostat");
             float newTemp = atof(msg);
-            childOnRemoteTemp(newTemp);
+            // childOnRemoteTemp(newTemp);
+            // TODO: Replace with model method
         }else if(strcmp(topic, toChildModeTopic) == 0) {
             Serial.println("Received mode update from remote thermostat");
             // Passing on command to home assistant
             int newMode = (int)atoi(msg);
             Serial.println("New mode: ");
             Serial.println((int)newMode);
-            childOnRemoteMode(static_cast<MODE>(newMode));
+            // childOnRemoteMode(static_cast<MODE>(newMode));
+            // TODO: Replace with model method
         }else if(strcmp(topic, toChildStateTopic) == 0) {
             Serial.println("Received state update from remote thermostat");
             // Passing on command to home assistant
             int newState = (int)atoi(msg);
-            childOnRemoteState(static_cast<STATE>(newState));
+            // childOnRemoteState(static_cast<STATE>(newState));
+            // TODO: Replace with model method
         }else if(strcmp(topic, toChildUnlockedTopic) == 0) {
             Serial.println("Received unlocked update from remote thermostat");
             // Passing on command to home assistant
@@ -323,7 +336,8 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
             float newGoalTemp = atof(msg);
     
             if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
-                parentOnTempGoal(newGoalTemp);
+                // parentOnTempGoal(newGoalTemp);
+                // TODO: Replace with model method
             };
         }else if(strcmp(topic, toParentModeTopic) == 0) {
             Serial.print("Remote mode button clicked: ");
@@ -363,7 +377,8 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
         float newGoalTemp = atof(msg);
 
         if(newGoalTemp < MAX_GOAL_TEMP && newGoalTemp > MIN_GOAL_TEMP) {
-            childOnTempGoal(newGoalTemp);
+            // childOnTempGoal(newGoalTemp);
+            // TODO: Replace with model method
         };
     }
 }

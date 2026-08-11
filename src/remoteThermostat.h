@@ -1,7 +1,9 @@
 #ifndef REMOTE_THERMOSTAT_H
 #define REMOTE_THERMOSTAT_H
 
-#include "stateMachine.h"
+// #include "stateMachine.h"
+#include "core/core-structs.h"
+#include "core/ThermostatModel.h"
 #include <WiFi.h>
 #include <ArduinoHA.h>
 #include "storage.h"
@@ -14,13 +16,15 @@ extern volatile bool flag_manualHeatButton;
 extern volatile bool flag_manualCoolButton;
 extern volatile bool flag_manualFanButton;
 
-void parentOnTempGoal(float newTempGoal);
-void childOnTempGoal(float newTempGoal);
-void childOnRemoteTemp(float newTemp);
-void parentOnRemoteMode(MODE newMode);
-void childOnRemoteMode(MODE newMode);
-void parentOnRemoteState(STATE newState);
-void childOnRemoteState(STATE newState);
+extern ThermostatModel* model;
+
+// void parentOnTempGoal(float newTempGoal);
+// void childOnTempGoal(float newTempGoal);
+// void childOnRemoteTemp(float newTemp);
+// void parentOnRemoteMode(MODE newMode);
+// void childOnRemoteMode(MODE newMode);
+// void parentOnRemoteState(STATE newState);
+// void childOnRemoteState(STATE newState);
 
 // Regular declarations
 void updateSharedTemp(float temp);

@@ -1,8 +1,19 @@
 #include "ThermostatModel.h"
 
+// Initial variables
+const int LONG_STATE_DELAY = 480000;    // 8 minutes in ms
+const int REG_STATE_DELAY = 300000;     // 5 minutes in ms
+// const int LONG_STATE_DELAY = 15000;    // 15s in ms
+// const int REG_STATE_DELAY = 10000;     // 10s in ms
+
+long int RESET_LIMIT_MS = 2 * 3600000; // 2 hours
+
+
+
 ThermostatModel::ThermostatModel(ROLE role, SyncManager& sync) : sync_(sync) {
     ts_.role = role;
     ts_.mode = MODE::Off;
+    ts_.lastMode = MODE::Off;
     ts_.state = STATE::Idle;
     ts_.temp = 70;
     ts_.goalTemp = 70;
@@ -24,39 +35,109 @@ void ThermostatModel::initializeFromStorage(MODE lastMode,
     ts_.lastHeavyState = lastHeavyState;
 }
 
+void ThermostatModel::restoreLastMode() {
+    if(ts_.role == ROLE::CHILD) {
+        Serial.println("WARN: Child cannot restore last mode.");
+        return;
+    }
+
+    ts_.mode = ts_.lastMode;
+    sync_.publishThermState(ts_);
+    _notify(); // Notify observers of the change
+}
+
+void ThermostatModel::_setRelaysFromState(STATE newState) {
+  // Set relays based on the new state
+  switch (newState) {
+    case STATE::Heat:
+      // Set relays for heating
+      digitalWrite(GPIO_RELAY1, HIGH); // Turn on heating relay (pin 40)
+      digitalWrite(GPIO_RELAY2, LOW);  // Ensure cooling relay is off
+      digitalWrite(GPIO_RELAY3, HIGH);  // Ensure fan relay is off
+      break;
+    case STATE::Cool:
+      // Set relays for cooling
+      digitalWrite(GPIO_RELAY1, LOW);  // Ensure heating relay is off
+      digitalWrite(GPIO_RELAY2, HIGH); // Turn on cooling relay (pin 2)
+      digitalWrite(GPIO_RELAY3, HIGH);  // Ensure fan relay is off
+      break;
+    case STATE::Fan:
+      // Set relays for fan
+      digitalWrite(GPIO_RELAY1, LOW);  // Ensure heating relay is off
+      digitalWrite(GPIO_RELAY2, LOW);  // Ensure cooling relay is off
+      digitalWrite(GPIO_RELAY3, HIGH); // Turn on fan relay (pin 1)
+      break;
+    case STATE::Idle:
+    case STATE::AwaitingCool:
+    case STATE::AwaitingHeat:
+      // Set relays for idle
+      digitalWrite(GPIO_RELAY1, LOW);  // Ensure heating relay is off
+      digitalWrite(GPIO_RELAY2, LOW);  // Ensure cooling relay is off
+      digitalWrite(GPIO_RELAY3, LOW);  // Ensure fan relay is off
+      break;
+  }
+}
+
+
 void ThermostatModel::setMode(MODE newMode) {
-    if(ts_.role == ROLE::PARENT) {
-        // Update local state and sync
-        ts_.mode = newMode;
-        sync_.publishMode(newMode);
-    } else {
+    if(ts_.role == ROLE::CHILD) {
         // Send command to parent to change mode
         Command cmd;
         cmd.type = COMMAND_TYPE::SetMode;
         cmd.mode = newMode;
         sync_.publishCommand(cmd);
+        return;
     }
+
+    // Parent logic
+    STATE computedNewState = ts_.state;
+
+    // Update local state and sync
+    if(ts_.mode == newMode) return;
+    ts_.mode = newMode;
+
+    if(newMode == MODE::Off) {
+        computedNewState = STATE::Idle;
+    }else if(newMode == MODE::Auto) {
+        computedNewState = _computeAutoStateChange();
+    }else if(newMode == MODE::Manual) {
+        // Switching to manual mode, so we keep the current state as is
+        computedNewState = _computeManualStateChange(ts_.state);
+    }
+    
+    // Let child thermostats know about the mode/state change
+    if(computedNewState != ts_.state) {
+        ts_.state = computedNewState;
+        sync_.publishThermState(ts_);
+    }
+
+    // Notify observers of the change
+    _notify();
 }
 
-void ThermostatModel::setTargetTemp(float newTemp) {
-    if(ts_.role == ROLE::PARENT) {
-        ts_.goalTemp = newTemp;
-        sync_.publishThermState(ts_);
-    }else {
+void ThermostatModel::setGoalTemp(float newTemp) {
+    if(ts_.role == ROLE::CHILD) {
         // Send command to parent to change target temperature
         Command cmd;
         cmd.type = COMMAND_TYPE::SetTempGoal;
         cmd.tempGoal = newTemp;
         sync_.publishCommand(cmd);
+        return;
     }
+
+    // Parent logic
+    ts_.goalTemp = newTemp;
+    sync_.publishThermState(ts_);
+    _notify(); // Notify observers of the change
 }
 
-void ThermostatModel::setCurrentTemp(float newTemp) {
+void ThermostatModel::setTemp(float newTemp) {
     if(ts_.role == ROLE::CHILD) {
         Serial.println("WARN: Child cannot set current temperature directly.");
         return;
     }
 
+    // Parent logic
     ts_.temp = newTemp;
     sync_.publishThermState(ts_);
 }
@@ -86,9 +167,9 @@ void ThermostatModel::requestManualState(STATE newState) {
 
     // TODO: Implement logic to properly handle manual state change
     // Update local state and sync
-    STATE newState = _computeManualStateChange(newState); // This function should check if the state change is valid
-    if(newState != ts_.state) {
-        ts_.state = newState;
+    STATE computedNewState = _computeManualStateChange(newState); // This function should check if the state change is valid
+    if(computedNewState != ts_.state) {
+        ts_.state = computedNewState;
         sync_.publishThermState(ts_);
     }
 }
@@ -117,10 +198,16 @@ void ThermostatModel::subscribe(ThermostatObserver observer) {
 }
 
 void ThermostatModel::update() {
+    STATE newState = ts_.state;
     // For parent, we might want to check if the state needs to
-    //      be updated based in auto mode
-    if(ts_.role == ROLE::PARENT && ts_.mode == MODE::Auto) {
-        STATE newState = _computeAutoStateChange();
+    //      be updated
+    if(ts_.role == ROLE::PARENT) {
+        if(ts_.mode == MODE::Auto) {
+            newState = _computeAutoStateChange();
+        }else if(ts_.mode == MODE::Manual) {
+            newState = _computeManualStateChange(ts_.state);
+        }
+
         if(newState != ts_.state) {
             ts_.state = newState;
             sync_.publishThermState(ts_);
@@ -130,8 +217,12 @@ void ThermostatModel::update() {
 }
 
 void ThermostatModel::_notify() {
-    // Check what has changed and notify observers accordingly
+    // Check that something has changed
     if(memcmp(&ts_, &oldTs_, sizeof(ThermostatState)) != 0) {
+        // Update relays based on the new state
+        _setRelaysFromState(ts_.state);
+
+        // Notify observers of the change(s)
         for(auto& observer : observers_) {
             observer(ts_);
         }
@@ -163,6 +254,18 @@ long int getDelay(STATE fromState, STATE toState) {
   return 0;
 }
 
+long int ThermostatModel::getRemainingDelay() {
+    long int timeSinceLastHeavy = millis() - _lastHeavyTime;
+    long int requiredDelay = getDelay(ts_.lastHeavyState, ts_.state);
+    long int remainingDelay = requiredDelay - timeSinceLastHeavy;
+    return (remainingDelay > 0) ? remainingDelay : 0;
+}
+
+long int ThermostatModel::getRemainingInteractionTime() {
+    long int timeSinceLastInteraction = millis() - ts_.lastInteractionTime;
+    long int remainingTime = RESET_LIMIT_MS - timeSinceLastInteraction;
+    return (remainingTime > 0) ? remainingTime : 0;
+}
 
 STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
     STATE computedNewState = ts_.state;
@@ -183,7 +286,7 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
 
         Serial.println("TODO: Flag off button here");
         // flag_offButton = true;
-        return;
+        return computedNewState;
     }
 
 
@@ -360,7 +463,7 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
     long int timeSinceLastHeavy = millis() - _lastHeavyTime;
     if(timeSinceLastHeavy < getDelay(ts_.lastHeavyState, computedNewState)) {
         Serial.println("Awaiting delay");
-        return;
+        return computedNewState;
     }
 
     // ==== awaiting --> active ====
@@ -465,12 +568,12 @@ STATE ThermostatModel::_computeAutoStateChange() {
     long int timeSinceLastHeavy = millis() - _lastHeavyTime;
     if(timeSinceLastHeavy < getDelay(ts_.lastHeavyState, computedNewState)) {
         Serial.println("Awaiting delay (auto)");
-        return;
+        return computedNewState;
     }
     
     if(ts_.temp < 0) {
         Serial.println("Temperature not set");
-        return;
+        return computedNewState;
     }
     // Past these last two if statement, we can trust that we are allowed to go to heat/cool state
 

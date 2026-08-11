@@ -23,6 +23,7 @@ enum STATE {
 struct ThermostatState {
   ROLE role = ROLE::PARENT;
   MODE mode = MODE::Off;
+  MODE lastMode = MODE::Off;
   STATE state = STATE::Idle;
   float temp = 70;
   float goalTemp = 70;
@@ -40,7 +41,7 @@ enum COMMAND_TYPE {
   SetTempGoal,
   SetTemp,
   SetState
-} type;
+};
 
 struct Command {
   COMMAND_TYPE type;

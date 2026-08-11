@@ -7,12 +7,11 @@
 #include "../locking.h"
 #include "SyncManager.h"
 
-const int LONG_STATE_DELAY = 480000;    // 8 minutes in ms
-const int REG_STATE_DELAY = 300000;     // 5 minutes in ms
-// const int LONG_STATE_DELAY = 15000;    // 15s in ms
-// const int REG_STATE_DELAY = 10000;     // 10s in ms
+// For HVAC relays
+#define GPIO_RELAY1  40
+#define GPIO_RELAY2  2
+#define GPIO_RELAY3  1
 
-long int RESET_LIMIT_MS = 2 * 3600000; // 2 hours
 
 using ThermostatObserver = std::function<void(const ThermostatState&)>;
 
@@ -20,11 +19,18 @@ class ThermostatModel {
     public:
         ThermostatModel(ROLE role, SyncManager& sync);
         void update();
+        long int getRemainingDelay();
+        long int getRemainingInteractionTime();
+        void newInteraction() { ts_.lastInteractionTime = millis(); }
 
         void setMode(MODE newMode);
-        void setTargetTemp(float newTemp);
-        void setCurrentTemp(float newTemp);
+        MODE getMode() const { return ts_.mode; }
+        void setGoalTemp(float newTemp);
+        float getGoalTemp() const { return ts_.goalTemp; }
+        void setTemp(float newTemp);
+        float getTemp() const { return ts_.temp; }
         void requestManualState(STATE newState);
+        STATE getCurrentState() const { return ts_.state; }
         
         // Getting updates from it
         void subscribe(ThermostatObserver observer);
@@ -37,9 +43,11 @@ class ThermostatModel {
                                    float lastTempGoal,
                                    float lastTemp,
                                    STATE lastHeavyState);
+        void restoreLastMode();
     private:
         STATE _computeAutoStateChange();
         STATE _computeManualStateChange(STATE requestedState);
+        void _setRelaysFromState(STATE newState);
         ThermostatState ts_;
         ThermostatState oldTs_;
         STATE _lastHeavyState;

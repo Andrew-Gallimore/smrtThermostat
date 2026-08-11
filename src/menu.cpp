@@ -506,7 +506,7 @@ void UIinitializeMenu() {
                 lv_obj_set_style_opa(menu_settings_icon, LV_OPA_20, LV_PART_MAIN);
                 
                 // Restoring timer if we are in a correct state
-                STATE state = getCurrentState();
+                STATE state = model->getCurrentState();
                 if(state != STATE::Idle) {
                     UIshowTimer();
                 }
@@ -585,7 +585,7 @@ void UIshowMenu() {
         lv_obj_set_style_opa(menu_settings_icon, LV_OPA_20, LV_PART_MAIN);
     }
 
-    MODE currentMode = getCurrentMode();
+    MODE currentMode = model->getMode();
     if(currentMode == MODE::Auto) {
         lv_obj_set_style_bg_color(menuButton2, C_BTN_Highlight, LV_PART_MAIN);
         lv_obj_set_style_bg_color(menuButton4, C_BTN_BG, LV_PART_MAIN);
