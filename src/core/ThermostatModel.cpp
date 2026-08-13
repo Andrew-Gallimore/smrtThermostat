@@ -94,10 +94,10 @@ void ThermostatModel::setMode(MODE newMode) {
 
     // Update local state and sync
     if(ts_.mode == newMode) return;
-    ts_.mode = newMode;
-
+    
     if(newMode == MODE::Off) {
         computedNewState = STATE::Idle;
+        ts_.lastMode = ts_.mode;
     }else if(newMode == MODE::Auto) {
         computedNewState = _computeAutoStateChange();
     }else if(newMode == MODE::Manual) {
@@ -105,6 +105,9 @@ void ThermostatModel::setMode(MODE newMode) {
         computedNewState = _computeManualStateChange(ts_.state);
     }
     
+    // Actually setting the new mode
+    ts_.mode = newMode;
+
     // Let child thermostats know about the mode/state change
     if(computedNewState != ts_.state) {
         ts_.state = computedNewState;
