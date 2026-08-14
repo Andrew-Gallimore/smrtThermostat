@@ -95,7 +95,7 @@ private:
     void _hideAutoButtons();
     void _showManualButtons();
     void _hideManualButtons();
-    void _setManualButtonState(STATE state);
+    void _setManualButtonState(STATE state, GOAL_STATE goalState);
     void _showOnButton();
     void _hideOnButton();
     void _setTemperatureText(float temp);

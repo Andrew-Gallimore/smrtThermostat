@@ -12,11 +12,15 @@ enum MODE {
 };
 enum STATE {
   Idle,
-  AwaitingHeat,
   Heat,
-  AwaitingCool,
   Cool,
   Fan,
+};
+
+enum GOAL_STATE {
+  None,
+  AwaitingHeat,
+  AwaitingCool,
 };
 
 
@@ -24,7 +28,8 @@ struct ThermostatState {
   ROLE role = ROLE::PARENT;
   MODE mode = MODE::Off;
   MODE lastMode = MODE::Off;
-  STATE state = STATE::Idle;
+  STATE state = STATE::Idle; // active physical state
+  GOAL_STATE goalState = None; // desired next transition
   float temp = 70;
   float goalTemp = 70;
   float margin = 1.0f;
@@ -32,6 +37,7 @@ struct ThermostatState {
   bool delayActive = false;
   long int lastHeavyTime = 0;
   STATE lastHeavyState = STATE::Idle;
+  long int autoDelayStartTime = 0;
   long int lastInteractionTime = 0;
 };
 

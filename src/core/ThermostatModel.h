@@ -27,6 +27,8 @@ class ThermostatModel {
         MODE getMode() const { return ts_.mode; }
         void setGoalTemp(float newTemp);
         float getGoalTemp() const { return ts_.goalTemp; }
+        void setGoalState(GOAL_STATE newGoal);
+        GOAL_STATE getGoalState() const { return ts_.goalState; }
         void setTemp(float newTemp);
         float getTemp() const { return ts_.temp; }
         void requestManualState(STATE newState);
@@ -47,7 +49,10 @@ class ThermostatModel {
     private:
         STATE _computeAutoStateChange();
         STATE _computeManualStateChange(STATE requestedState);
+        STATE _resolvePendingState(STATE targetState);
         void _setRelaysFromState(STATE newState);
+        bool _isHeavyState(STATE state) const;
+        void _recordHeavyExit();
         ThermostatState ts_;
         ThermostatState oldTs_;
         STATE _lastHeavyState;

@@ -17,9 +17,11 @@ extern void onTempDownButtonClick(lv_event_t* e);
 extern void onManualHeatClick();
 extern void onManualCoolClick();
 extern void onManualFanClick();
-extern void onSwitchOnClick();
+extern void onONButtonClick();
 
 static void ThermostatView_onButtonTimerCallback(lv_timer_t* t) {
+    onONButtonClick();
+
     lv_obj_t* target = static_cast<lv_obj_t*>(lv_timer_get_user_data(t));
     if (target != nullptr) {
         lv_obj_add_flag(target, LV_OBJ_FLAG_CLICKABLE);
@@ -39,13 +41,12 @@ static void ThermostatView_onButtonEvent(lv_event_t* e) {
         return;
     }
 
-    onSwitchOnClick();
     lv_obj_clear_flag(target, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(target, C_Orange, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(target, LV_OPA_COVER, LV_PART_INDICATOR);
 
     lv_timer_t* timer = lv_timer_create_basic();
-    lv_timer_set_period(timer, 1500);
+    lv_timer_set_period(timer, 850);
     lv_timer_set_repeat_count(timer, 1);
     lv_timer_set_cb(timer, ThermostatView_onButtonTimerCallback);
     lv_timer_set_user_data(timer, target);
@@ -411,9 +412,6 @@ void ThermostatView::_showHeatZone() {
     lv_anim_set_time(&anim, 3000);
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
     lv_anim_start(&anim);
-    if (goalText != nullptr) {
-        lv_obj_set_style_text_color(goalText, C_Red, LV_PART_MAIN);
-    }
 }
 
 void ThermostatView::_hideHeatZone() {
@@ -431,9 +429,6 @@ void ThermostatView::_hideHeatZone() {
     lv_anim_set_time(&anim, 1500);
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_in);
     lv_anim_start(&anim);
-    if (goalText != nullptr) {
-        lv_obj_set_style_text_color(goalText, C_GoalTemp, LV_PART_MAIN);
-    }
 }
 
 void ThermostatView::_initializeCoolZone() {
@@ -467,9 +462,6 @@ void ThermostatView::_showCoolZone() {
     lv_anim_set_time(&anim, 3000);
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
     lv_anim_start(&anim);
-    if (goalText != nullptr) {
-        lv_obj_set_style_text_color(goalText, C_Blue, LV_PART_MAIN);
-    }
 }
 
 void ThermostatView::_hideCoolZone() {
@@ -487,9 +479,6 @@ void ThermostatView::_hideCoolZone() {
     lv_anim_set_time(&anim, 1500);
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_in);
     lv_anim_start(&anim);
-    if (goalText != nullptr) {
-        lv_obj_set_style_text_color(goalText, C_GoalTemp, LV_PART_MAIN);
-    }
 }
 
 void ThermostatView::_initializeTemperature() {
@@ -697,25 +686,29 @@ void ThermostatView::_hideManualButtons() {
     lv_obj_add_flag(manualBTN3, LV_OBJ_FLAG_HIDDEN);
 }
 
-void ThermostatView::_setManualButtonState(STATE state) {
+void ThermostatView::_setManualButtonState(STATE state, GOAL_STATE goalState) {
     if (manualBTN1 == nullptr || manualBTN2 == nullptr || manualBTN3 == nullptr) {
         return;
     }
-    if (state == STATE::Heat || state == STATE::AwaitingHeat) {
+    bool heatActive = state == STATE::Heat || goalState == GOAL_STATE::AwaitingHeat;
+    bool coolActive = state == STATE::Cool || goalState == GOAL_STATE::AwaitingCool;
+    bool fanActive = state == STATE::Fan;
+
+    if (heatActive) {
         lv_obj_set_style_bg_color(manualBTN1, C_Red, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(manualBTN2, C_BTN_BG, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(manualBTN3, C_BTN_BG, LV_PART_MAIN);
-    } else if (state == STATE::Cool || state == STATE::AwaitingCool) {
-        lv_obj_set_style_bg_color(manualBTN1, C_BTN_BG, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(manualBTN2, C_Blue, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(manualBTN3, C_BTN_BG, LV_PART_MAIN);
-    } else if (state == STATE::Fan) {
-        lv_obj_set_style_bg_color(manualBTN1, C_BTN_BG, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(manualBTN2, C_BTN_BG, LV_PART_MAIN);
-        lv_obj_set_style_bg_color(manualBTN3, C_Teal, LV_PART_MAIN);
     } else {
         lv_obj_set_style_bg_color(manualBTN1, C_BTN_BG, LV_PART_MAIN);
+    }
+
+    if (coolActive) {
+        lv_obj_set_style_bg_color(manualBTN2, C_Blue, LV_PART_MAIN);
+    } else {
         lv_obj_set_style_bg_color(manualBTN2, C_BTN_BG, LV_PART_MAIN);
+    }
+
+    if (fanActive) {
+        lv_obj_set_style_bg_color(manualBTN3, C_Teal, LV_PART_MAIN);
+    } else {
         lv_obj_set_style_bg_color(manualBTN3, C_BTN_BG, LV_PART_MAIN);
     }
 }
@@ -746,17 +739,7 @@ void ThermostatView::_hideOnButton() {
 
 long int ThermostatView::_getRemainingDelaySeconds() const {
     STATE fromState = ts_.lastHeavyState;
-    if (fromState == STATE::AwaitingHeat) {
-        fromState = STATE::Heat;
-    } else if (fromState == STATE::AwaitingCool) {
-        fromState = STATE::Cool;
-    }
     STATE toState = ts_.state;
-    if (toState == STATE::AwaitingHeat) {
-        toState = STATE::Heat;
-    } else if (toState == STATE::AwaitingCool) {
-        toState = STATE::Cool;
-    }
     long int delay = 0;
     if ((fromState == STATE::Heat && toState == STATE::Cool) ||
         (fromState == STATE::Cool && toState == STATE::Heat)) {
@@ -815,8 +798,8 @@ void ThermostatView::_renderMode() {
 }
 
 void ThermostatView::_renderStateIndicators() {
-    bool showHeat = ts_.state == STATE::Heat || ts_.state == STATE::AwaitingHeat;
-    bool showCool = ts_.state == STATE::Cool || ts_.state == STATE::AwaitingCool;
+    bool showHeat = ts_.state == STATE::Heat;
+    bool showCool = ts_.state == STATE::Cool;
     if (showHeat) {
         _showHeatZone();
     } else {
@@ -827,7 +810,7 @@ void ThermostatView::_renderStateIndicators() {
     } else {
         _hideCoolZone();
     }
-    _setManualButtonState(ts_.state);
+    _setManualButtonState(ts_.state, ts_.goalState);
 }
 
 void ThermostatView::_renderTemperature() {
@@ -873,18 +856,23 @@ void ThermostatView::_renderGoalTemperature() {
     if (goalText == nullptr) {
         return;
     }
+    lv_color_t goalColor = C_GoalTemp;
+    if (ts_.goalState == GOAL_STATE::AwaitingHeat) {
+        goalColor = C_Red;
+    } else if (ts_.goalState == GOAL_STATE::AwaitingCool) {
+        goalColor = C_Blue;
+    }
     if (ts_.mode == MODE::Off) {
         lv_label_set_text(goalText, "Off");
-        lv_obj_remove_flag(goalText, LV_OBJ_FLAG_HIDDEN);
     } else if (ts_.mode == MODE::Auto) {
         char buffer[20];
         snprintf(buffer, sizeof(buffer), "%.0f", round(ts_.goalTemp));
         lv_label_set_text(goalText, buffer);
-        lv_obj_remove_flag(goalText, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_label_set_text(goalText, "");
-        lv_obj_remove_flag(goalText, LV_OBJ_FLAG_HIDDEN);
     }
+    lv_obj_set_style_text_color(goalText, goalColor, LV_PART_MAIN);
+    lv_obj_remove_flag(goalText, LV_OBJ_FLAG_HIDDEN);
     if (goalErrorText != nullptr) {
         lv_obj_add_flag(goalErrorText, LV_OBJ_FLAG_HIDDEN);
     }
@@ -928,7 +916,7 @@ void ThermostatView::_renderLockIndicator() {
 
 void ThermostatView::_renderDelayIndicator() {
     Serial.println("Called _renderDelayIndicator with state: " + String(static_cast<int>(ts_.state)));
-    bool showDelay = ts_.state == STATE::AwaitingHeat || ts_.state == STATE::AwaitingCool;
+    bool showDelay = ts_.goalState != None;
     if (showDelay) {
         Serial.println("Rendering delay indicator: " + String(static_cast<int>(ts_.state)));
         _showDelay();

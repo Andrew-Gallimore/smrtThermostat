@@ -87,9 +87,9 @@ void updateSharedMode(MODE mode) {
             hvac.setMode(HAHVAC::AutoMode);
         } else if (mode == MODE::Manual) {
             STATE currentState = model->getCurrentState();
-            if(currentState == STATE::Cool || currentState == STATE::AwaitingCool) {
+            if(currentState == STATE::Cool) {
                 hvac.setMode(HAHVAC::CoolMode);
-            } else if (currentState == STATE::Heat || currentState == STATE::AwaitingHeat) {
+            } else if (currentState == STATE::Heat) {
                 hvac.setMode(HAHVAC::HeatMode);
             } else if (currentState == STATE::Fan) {
                 hvac.setMode(HAHVAC::FanOnlyMode);
@@ -125,12 +125,10 @@ void updateSharedState(STATE state) {
         } else if(mode == MODE::Manual) {
             switch(state) {
                 case STATE::Heat:
-                case STATE::AwaitingHeat:
                     hvac.setMode(HAHVAC::HeatMode);
                     break;
 
                 case STATE::Cool:
-                case STATE::AwaitingCool:
                     hvac.setMode(HAHVAC::CoolMode);
                     break;
 
@@ -166,8 +164,6 @@ void updateSharedState(STATE state) {
                     break;
 
                 case STATE::Idle:
-                case STATE::AwaitingHeat:
-                case STATE::AwaitingCool:
                     hvac.setAction(HAHVAC::IdleAction);
                     break;
             }

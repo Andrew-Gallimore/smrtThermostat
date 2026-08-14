@@ -55,27 +55,26 @@ void onTempDownButtonClick(lv_event_t* e) {
 
 void onManualHeatClick() {  
   if(whoAmI() == ROLE::PARENT) {
-      if(model->getCurrentState() == STATE::Heat || model->getCurrentState() == STATE::AwaitingHeat) {
+      if(model->getCurrentState() == STATE::Heat || model->getGoalState() == GOAL_STATE::AwaitingHeat) {
         model->requestManualState(STATE::Idle);
-      }else {
+      } else {
         model->requestManualState(STATE::Heat);
       }
-  }else {
+  } else {
     sendHeatButtonClick();
   }
 }
 
 void onManualCoolClick() {
   if(whoAmI() == ROLE::PARENT) {
-    if(model->getCurrentState() == STATE::Cool || model->getCurrentState() == STATE::AwaitingCool) {
+    if(model->getCurrentState() == STATE::Cool || model->getGoalState() == GOAL_STATE::AwaitingCool) {
       model->requestManualState(STATE::Idle);
-    }else {
+    } else {
       model->requestManualState(STATE::Cool);
     }
-  }else {
+  } else {
     sendCoolButtonClick();
   }
-
 }
 
 void onManualFanClick() {
@@ -118,10 +117,6 @@ void onAutoButtonClick() {
 
 void onLockButtonClick() {
   printf("Lock button selected\n");
-}
-
-void onSwitchOnClick() {
-  model->restoreLastMode();
 }
 
 
