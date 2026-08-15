@@ -17,14 +17,9 @@
 const int MIN_GOAL_TEMP = 40;
 const int MAX_GOAL_TEMP = 110;
 
-// 8C:BF:EA:0D:B7:E4
-// AC:27:6E:A4:A9:70
-// 28:84:85:85:3B:88
-// const uint8_t CHILD_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0D, 0xB7, 0xE4};
-// const uint8_t PARENT_ADDR[] = {0x28, 0x84, 0x85, 0x85, 0x3B, 0x88};
-const uint8_t CHILD_ADDR[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const uint8_t PARENT_ADDR[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-const bool JUST_TREAT_ME_AS_PARENT = true; // If set, bypasses mac address check
+
+const uint8_t CHILD_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0D, 0xB7, 0xE4};
+const uint8_t PARENT_ADDR[] = {0xDC, 0xB4, 0xD9, 0x04, 0x90, 0x24};
 // const uint8_t PARENT_ADDR[] = {0x8C, 0xBF, 0xEA, 0x0E, 0xD0, 0xD4};
 // DC:B4:D9:04:90:24
 
@@ -79,8 +74,6 @@ MODE getStoredLastMode();
 
 void getStoredNetworkSSID(char* SSIDBuffer, size_t bufSize);
 void getStoredNetworkPWD(char* PWDBuffer, size_t bufSize);
-
-void getStoredThermometerList(std::vector<std::string>& thermometerNames);
 
 
 #endif // STORAGE_H

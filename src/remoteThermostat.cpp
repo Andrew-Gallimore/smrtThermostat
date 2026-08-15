@@ -342,11 +342,11 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
             Serial.println((int)modeButton);
 
             if(modeButton == MODE::Off) {
-                flag_offButton = true;
+                // flag_offButton = true;
             }else if(modeButton == MODE::Auto) {
-                flag_autoButton = true;
+                // flag_autoButton = true;
             }else if(modeButton == MODE::Manual) {
-                flag_manualButton = true;
+                // flag_manualButton = true;
             }
         }else if(strcmp(topic, toParentStateTopic) == 0) {
             Serial.println("Remote state button clicked");
@@ -354,11 +354,11 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
             int stateButton = (int)atoi(msg);
             
             if(stateButton == STATE::Cool) {
-                flag_manualCoolButton = true;
+                // flag_manualCoolButton = true;
             }else if(stateButton == STATE::Heat) {
-                flag_manualHeatButton = true;
+                // flag_manualHeatButton = true;
             }else if(stateButton == STATE::Fan) {
-                flag_manualFanButton = true;
+                // flag_manualFanButton = true;
             }
         }else if(strcmp(topic, toParentUnlockedTopic) == 0) {
             Serial.println("Received unlocked update from remote thermostat");

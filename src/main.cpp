@@ -61,7 +61,7 @@ void onManualHeatClick() {
         model->requestManualState(STATE::Heat);
       }
   } else {
-    sendHeatButtonClick();
+    // sendHeatButtonClick();
   }
 }
 
@@ -73,7 +73,7 @@ void onManualCoolClick() {
       model->requestManualState(STATE::Cool);
     }
   } else {
-    sendCoolButtonClick();
+    // sendCoolButtonClick();
   }
 }
 
@@ -85,14 +85,14 @@ void onManualFanClick() {
       model->requestManualState(STATE::Fan);
     }
   }else {
-    sendFanButtonClick();
+    // sendFanButtonClick();
   }
     
 }
 
 void onOFFButtonClick() {
   if (whoAmI() == ROLE::CHILD) {
-    sendOffButtonClick();
+    // sendOffButtonClick();
     return;
   }
 

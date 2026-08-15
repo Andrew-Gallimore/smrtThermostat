@@ -6,6 +6,8 @@
 
 #define DO_SD_CARD true
 
+bool JUST_TREAT_ME_AS_PARENT = true;
+
 uint8_t myMac[6];
 bool myMacFound = false;
 bool sdCardInitialized = false;

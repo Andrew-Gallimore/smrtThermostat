@@ -49,10 +49,8 @@ class ThermostatModel {
     private:
         STATE _computeAutoStateChange();
         STATE _computeManualStateChange(STATE requestedState);
-        STATE _resolvePendingState(STATE targetState);
         void _setRelaysFromState(STATE newState);
-        bool _isHeavyState(STATE state) const;
-        void _recordHeavyExit();
+        long int _getCalculatedDelay(STATE fromState, STATE toState);
         ThermostatState ts_;
         ThermostatState oldTs_;
         STATE _lastHeavyState;

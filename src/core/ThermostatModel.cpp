@@ -18,7 +18,8 @@ ThermostatModel::ThermostatModel(ROLE role, SyncManager& sync) : sync_(sync) {
     ts_.goalState = None;
     ts_.temp = 70;
     ts_.goalTemp = 70;
-    ts_.margin = 1.0f;
+    ts_.onMargin = 1.0f;
+    ts_.offMargin = 1.0f;
     ts_.unlocked = false;
     ts_.delayActive = false;
     ts_.lastHeavyState = STATE::Idle;
@@ -76,34 +77,26 @@ void ThermostatModel::_setRelaysFromState(STATE newState) {
   }
 }
 
-bool ThermostatModel::_isHeavyState(STATE state) const {
-    return state == STATE::Heat || state == STATE::Cool;
-}
+// Recording leaving a heavy state
+// ts_.lastHeavyState = ts_.state;
+// _lastHeavyTime = millis();
+// ts_.lastHeavyTime = _lastHeavyTime;
 
-void ThermostatModel::_recordHeavyExit() {
-    if (!_isHeavyState(ts_.state)) {
-        return;
-    }
-    ts_.lastHeavyState = ts_.state;
-    _lastHeavyTime = millis();
-    ts_.lastHeavyTime = _lastHeavyTime;
-}
+// STATE ThermostatModel::_resolvePendingState(STATE targetState) {
+//     long int remaining = getRemainingDelay();
+//     if (remaining > 0) {
+//         if (ts_.state != targetState && ts_.state != STATE::Idle) {
+//             if (_isHeavyState(ts_.state)) {
+//                 _recordHeavyExit();
+//             }
+//             return STATE::Idle;
+//         }
+//         return ts_.state;
+//     }
 
-STATE ThermostatModel::_resolvePendingState(STATE targetState) {
-    long int remaining = getRemainingDelay();
-    if (remaining > 0) {
-        if (ts_.state != targetState && ts_.state != STATE::Idle) {
-            if (_isHeavyState(ts_.state)) {
-                _recordHeavyExit();
-            }
-            return STATE::Idle;
-        }
-        return ts_.state;
-    }
-
-    ts_.goalState = None;
-    return targetState;
-}
+//     ts_.goalState = None;
+//     return targetState;
+// }
 
 void ThermostatModel::setMode(MODE newMode) {
     if(ts_.role == ROLE::CHILD) {
@@ -133,16 +126,19 @@ void ThermostatModel::setMode(MODE newMode) {
         // Switching to manual mode preserves the current state and any pending manual goal.
         computedNewState = ts_.state;
     }
-    
-    if (computedNewState != ts_.state && _isHeavyState(ts_.state) && !_isHeavyState(computedNewState)) {
-        _recordHeavyExit();
-    }
 
     // Actually setting the new mode
     ts_.mode = newMode;
 
     // Let child thermostats know about the mode/state change
     if(computedNewState != ts_.state) {
+        // If leaving heavy state, record that
+        if(ts_.state == STATE::Heat || ts_.state == STATE::Cool) {
+            _lastHeavyTime = millis();
+            ts_.lastHeavyTime = _lastHeavyTime;
+            ts_.lastHeavyState = ts_.state;
+        }
+
         ts_.state = computedNewState;
         sync_.publishThermState(ts_);
     }
@@ -212,18 +208,16 @@ void ThermostatModel::requestManualState(STATE newState) {
         return;
     }
 
-    STATE previousState = ts_.state;
-    GOAL_STATE previousGoal = ts_.goalState;
-
     STATE computedNewState = _computeManualStateChange(newState);
     if (computedNewState != ts_.state) {
-        if (_isHeavyState(ts_.state) && !_isHeavyState(computedNewState)) {
-            _recordHeavyExit();
+        // If leaving heavy state, record that
+        if(ts_.state == STATE::Heat || ts_.state == STATE::Cool) {
+            _lastHeavyTime = millis();
+            ts_.lastHeavyTime = _lastHeavyTime;
+            ts_.lastHeavyState = ts_.state;
         }
-        ts_.state = computedNewState;
-    }
 
-    if (ts_.state != previousState || ts_.goalState != previousGoal) {
+        ts_.state = computedNewState;
         sync_.publishThermState(ts_);
         _notify();
     }
@@ -260,19 +254,17 @@ void ThermostatModel::update() {
         if(ts_.mode == MODE::Auto) {
             newState = _computeAutoStateChange();
         } else if(ts_.mode == MODE::Manual) {
-            if (ts_.goalState == GOAL_STATE::AwaitingHeat) {
-                newState = _computeManualStateChange(STATE::Heat);
-            } else if (ts_.goalState == GOAL_STATE::AwaitingCool) {
-                newState = _computeManualStateChange(STATE::Cool);
-            } else {
-                newState = ts_.state;
-            }
+            newState = _computeManualStateChange(ts_.state);
         }
 
         if(newState != ts_.state) {
-            if (_isHeavyState(ts_.state) && !_isHeavyState(newState)) {
-                _recordHeavyExit();
+            // If leaving heavy state, record that
+            if(ts_.state == STATE::Heat || ts_.state == STATE::Cool) {
+                _lastHeavyTime = millis();
+                ts_.lastHeavyTime = _lastHeavyTime;
+                ts_.lastHeavyState = ts_.state;
             }
+
             ts_.state = newState;
             sync_.publishThermState(ts_);
             _notify(); // Notify observers of the state change
@@ -299,31 +291,32 @@ void ThermostatModel::_notify() {
  * @param toState The new STATE we are going to.
  * @return The delay in milliseconds required between the two states.
  */
-long int getDelay(STATE fromState, STATE toState) {
-  if(fromState == STATE::Heat && toState == STATE::Cool) {
-    return LONG_STATE_DELAY;
-  }else if(fromState == STATE::Cool && toState == STATE::Heat) {
-    return LONG_STATE_DELAY;
-  }else if(fromState == STATE::Heat && toState == STATE::Heat) {
-    return REG_STATE_DELAY;
-  }else if(fromState == STATE::Cool && toState == STATE::Cool) {
-    return REG_STATE_DELAY;
-  }
-
-  return 0;
+long int ThermostatModel::_getCalculatedDelay(STATE fromState, STATE toState) {
+    long int requiredDelay = 0;
+    if(fromState == STATE::Heat && toState == STATE::Cool) {
+        requiredDelay = LONG_STATE_DELAY;
+    }else if(fromState == STATE::Cool && toState == STATE::Heat) {
+        requiredDelay = LONG_STATE_DELAY;
+    }else if(fromState == STATE::Heat && toState == STATE::Heat) {
+        requiredDelay = REG_STATE_DELAY;
+    }else if(fromState == STATE::Cool && toState == STATE::Cool) {
+        requiredDelay = REG_STATE_DELAY;
+    }
+    
+    long int timeSinceLastHeavy = millis() - _lastHeavyTime;
+    long int remainingDelay = requiredDelay - timeSinceLastHeavy;
+    return (remainingDelay > 0) ? remainingDelay : 0;
 }
 
 long int ThermostatModel::getRemainingDelay() {
-    long int timeSinceLastHeavy = millis() - _lastHeavyTime;
     STATE targetState = ts_.state;
     if (ts_.goalState == AwaitingHeat) {
         targetState = STATE::Heat;
     } else if (ts_.goalState == AwaitingCool) {
         targetState = STATE::Cool;
     }
-    long int requiredDelay = getDelay(ts_.lastHeavyState, targetState);
-    long int remainingDelay = requiredDelay - timeSinceLastHeavy;
-    return (remainingDelay > 0) ? remainingDelay : 0;
+
+    return _getCalculatedDelay(ts_.lastHeavyState, targetState);
 }
 
 long int ThermostatModel::getRemainingInteractionTime() {
@@ -333,53 +326,145 @@ long int ThermostatModel::getRemainingInteractionTime() {
 }
 
 STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
-    if (requestedState == STATE::Idle) {
-        if (_isHeavyState(ts_.state)) {
-            _recordHeavyExit();
-        }
-        ts_.goalState = None;
-        return STATE::Idle;
-    }
-
-    if (requestedState == STATE::Fan) {
-        if (_isHeavyState(ts_.state)) {
-            _recordHeavyExit();
-        }
-        ts_.goalState = None;
-        return STATE::Fan;
-    }
-
-    if (requestedState == STATE::Heat) {
-        ts_.goalState = AwaitingHeat;
-    } else if (requestedState == STATE::Cool) {
-        ts_.goalState = AwaitingCool;
-    }
-
-    return _resolvePendingState(requestedState);
-}
-
-
-STATE ThermostatModel::_computeAutoStateChange() {
-    long int timeSinceLastInteraction = millis() - ts_.lastInteractionTime;
-    if(!isUnlocked() && timeSinceLastInteraction > RESET_LIMIT_MS) {
+    if(!isUnlocked() && getRemainingInteractionTime() == 0) {
         Serial.println(">>>> Turning off due to timer...");
         ts_.goalState = None;
         return STATE::Idle;
     }
 
-    GOAL_STATE desiredGoalState = None;
-    if(ts_.temp <= ts_.goalTemp - ts_.margin) {
-        desiredGoalState = AwaitingHeat;
-    } else if(ts_.temp >= ts_.goalTemp + ts_.margin) {
-        desiredGoalState = AwaitingCool;
+    // Switching goals
+    switch (ts_.state) {
+        case STATE::Idle:
+            if(requestedState == STATE::Heat) {
+                ts_.goalState = AwaitingHeat;
+            }else if(requestedState == STATE::Cool) {
+                ts_.goalState = AwaitingCool;
+            }else if(requestedState == STATE::Fan) {
+                ts_.goalState = None;
+                return STATE::Fan;
+            }else {
+                ts_.goalState = None;
+            }
+            break;
+        case STATE::Heat:
+            if(requestedState == STATE::Cool) {
+                ts_.goalState = AwaitingCool;
+            }else if(requestedState == STATE::Fan) {
+                ts_.goalState = None;
+                return STATE::Fan;
+            }else if(requestedState == STATE::Idle) {
+                ts_.goalState = None;
+            }
+            break;
+        case STATE::Cool:
+            if(requestedState == STATE::Heat) {
+                ts_.goalState = AwaitingHeat;
+            }else if(requestedState == STATE::Fan) {
+                ts_.goalState = None;
+                return STATE::Fan;
+            }else if(requestedState == STATE::Idle) {
+                ts_.goalState = None;
+            }
+            break;
+        case STATE::Fan:
+            if(requestedState == STATE::Idle) {
+                ts_.goalState = None;
+            }else if(requestedState == STATE::Heat) {
+                ts_.goalState = AwaitingHeat;
+            }else if(requestedState == STATE::Cool) {
+                ts_.goalState = AwaitingCool;
+            }else {
+                ts_.goalState = None;
+            }
+            break;
+        default:
+            // Should never get here...
+            Serial.println("WARN: Unhandled manual goalState change case! AHHHHHHHHH");
+            ts_.goalState = None;
+            break;
     }
 
-    if (desiredGoalState == None) {
+
+    // Switching states now...
+    
+    // If we are in a heavy state, we need to wait for the delay in Idle
+    if(ts_.state == STATE::Heat) {
+        if(ts_.goalState == GOAL_STATE::AwaitingCool) {
+            return STATE::Idle;
+        }
+    }else if(ts_.state == STATE::Cool) {
+        if(ts_.goalState == GOAL_STATE::AwaitingHeat) {
+            return STATE::Idle;
+        }
+    }else if(ts_.state == STATE::Idle || ts_.state == STATE::Fan) {
+        // Checking if we can transition to the requested
+        //      heat/cool state now because of the delay timer
+        if(getRemainingDelay() > 0) {
+            // Stay in the current state until the delay is over
+            return ts_.state;
+        }
+
+
+        if(ts_.goalState == AwaitingHeat) {
+            return STATE::Heat;
+        }else if(ts_.goalState == AwaitingCool) {
+            return STATE::Cool;
+        }
+    }
+
+    // If nothing else, we stay in the current state
+    return ts_.state;
+}
+
+
+STATE ThermostatModel::_computeAutoStateChange() {
+    if(!isUnlocked() && getRemainingInteractionTime() == 0) {
+        Serial.println(">>>> Turning off due to timer...");
         ts_.goalState = None;
         return STATE::Idle;
     }
 
-    ts_.goalState = desiredGoalState;
-    STATE targetState = desiredGoalState == AwaitingHeat ? STATE::Heat : STATE::Cool;
-    return _resolvePendingState(targetState);
+    // Setting goalState 
+    if(ts_.temp <= ts_.goalTemp - ts_.onMargin) {
+        ts_.goalState = AwaitingHeat;
+    } else if(ts_.temp >= ts_.goalTemp + ts_.onMargin) {
+        ts_.goalState = AwaitingCool;
+    }else {
+        ts_.goalState = None;
+        return STATE::Idle;
+    }
+
+    // Changing state
+    switch(ts_.state) {
+        case STATE::Heat:
+            if(ts_.goalState == AwaitingCool) {
+                return STATE::Idle;
+            }
+            break;
+        case STATE::Cool:
+            if(ts_.goalState == AwaitingHeat) {
+                return STATE::Idle;
+            }
+            break;
+        case STATE::Idle:
+        case STATE::Fan:
+            if(getRemainingDelay() > 0) {
+                return ts_.state;
+            }
+
+            if(ts_.goalState == AwaitingHeat) {
+                return STATE::Heat;
+            } else if(ts_.goalState == AwaitingCool) {
+                return STATE::Cool;
+            }
+            break;
+        default:
+            // Should never get here...
+            Serial.println("WARN: Unhandled auto state change case! AHHHHHHHHH");
+            ts_.goalState = None;
+            break;
+    }
+
+    // If nothing else, we stay in the current state
+    return ts_.state;
 }

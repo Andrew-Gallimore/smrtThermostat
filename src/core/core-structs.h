@@ -32,7 +32,8 @@ struct ThermostatState {
   GOAL_STATE goalState = None; // desired next transition
   float temp = 70;
   float goalTemp = 70;
-  float margin = 1.0f;
+  float onMargin = 1.0f;
+  float offMargin = 1.0f;
   bool unlocked = false;
   bool delayActive = false;
   long int lastHeavyTime = 0;
