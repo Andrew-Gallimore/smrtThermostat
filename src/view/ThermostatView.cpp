@@ -494,7 +494,40 @@ void ThermostatView::_initializeTemperature() {
     lv_obj_set_style_text_color(tempErrorText, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
     lv_obj_set_style_text_line_space(tempErrorText, 12, LV_PART_MAIN);
     lv_obj_set_style_text_font(tempErrorText, &chivo_mono_34, LV_PART_MAIN);
+    lv_obj_set_user_data(tempErrorText, this);
     lv_obj_add_flag(tempErrorText, LV_OBJ_FLAG_HIDDEN);
+    lv_anim_init(&tempErrorMsgAnim);
+    lv_anim_set_var(&tempErrorMsgAnim, tempErrorText);
+    lv_anim_set_exec_cb(&tempErrorMsgAnim, [](void* obj, int32_t v) {
+        lv_obj_t* label = static_cast<lv_obj_t*>(obj);
+        if (label == nullptr) {
+            return;
+        }
+
+        ThermostatView* view = static_cast<ThermostatView*>(lv_obj_get_user_data(label));
+        if (view == nullptr) {
+            return;
+        }
+
+        long int elapsed = millis() - view->lastGoodTempTime;
+        if (elapsed < 0) {
+            elapsed = 0;
+        }
+
+        if (v < 1) {
+            lv_label_set_text(label, "Waiting for\nthermometer\ndata");
+        } else {
+            char buffer[50];
+            long minutesAgo = elapsed / 1000 / 60;
+            snprintf(buffer, sizeof(buffer), "Was %.0fF\n%ld minute%s ago",
+                     round(view->lastGoodTemp), minutesAgo, minutesAgo == 1 ? "" : "s");
+            lv_label_set_text(label, buffer);
+        }
+    });
+    lv_anim_set_values(&tempErrorMsgAnim, 0, 2);
+    lv_anim_set_time(&tempErrorMsgAnim, 8000);
+    lv_anim_set_path_cb(&tempErrorMsgAnim, lv_anim_path_linear);
+    lv_anim_set_repeat_count(&tempErrorMsgAnim, LV_ANIM_REPEAT_INFINITE);
     tempSpinner = lv_spinner_create(lv_scr_act());
     lv_spinner_set_anim_params(tempSpinner, 2200, 200);
     lv_obj_set_size(tempSpinner, 112, 112);
@@ -524,6 +557,7 @@ void ThermostatView::_setTemperatureText(float temp) {
     if (tempSpinner != nullptr) {
         lv_obj_add_flag(tempSpinner, LV_OBJ_FLAG_HIDDEN);
     }
+    lv_anim_del(&tempErrorMsgAnim, nullptr);
 }
 
 void ThermostatView::_setGoalText() {
@@ -810,15 +844,7 @@ void ThermostatView::_renderTemperature() {
         }
         if (tempErrorText != nullptr) {
             lv_obj_remove_flag(tempErrorText, LV_OBJ_FLAG_HIDDEN);
-            if (((elapsed) / 2000) % 4 < 2) {
-                lv_label_set_text(tempErrorText, "Waiting for\nthermometer\ndata");
-            } else {
-                char buffer[50];
-                long minutesAgo = elapsed / 1000 / 60;
-                snprintf(buffer, sizeof(buffer), "Was %.0fF\n%ld minute%s ago",
-                         round(lastGoodTemp), minutesAgo, minutesAgo == 1 ? "" : "s");
-                lv_label_set_text(tempErrorText, buffer);
-            }
+            lv_anim_start(&tempErrorMsgAnim);
         }
         if (tempSpinner != nullptr) {
             lv_obj_remove_flag(tempSpinner, LV_OBJ_FLAG_HIDDEN);

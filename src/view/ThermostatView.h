@@ -49,6 +49,7 @@ private:
     lv_obj_t* tempText = nullptr;
     lv_obj_t* tempErrorText = nullptr;
     lv_obj_t* tempSpinner = nullptr;
+    lv_anim_t tempErrorMsgAnim;
 
     lv_obj_t* goalText = nullptr;
     lv_obj_t* goalErrorText = nullptr;

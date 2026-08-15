@@ -185,10 +185,13 @@ void ThermostatModel::setTemp(float newTemp) {
 
     if (ts_.mode == MODE::Auto) {
         update();
+    }else {
+        // The reason this is in the else is because update automatically
+        //      handles sync and notifying
+        sync_.publishThermState(ts_);
+        _notify(); // Notify observers of the change
     }
 
-    sync_.publishThermState(ts_);
-    _notify(); // Notify observers of the change
 }
 
 /**
@@ -464,9 +467,13 @@ STATE ThermostatModel::_computeAutoStateChange() {
 
     // Setting goalState 
     if(ts_.temp <= ts_.goalTemp - ts_.onMargin) {
-        ts_.goalState = AwaitingHeat;
+        if(ts_.state != STATE::Heat) {
+            ts_.goalState = AwaitingHeat;
+        }
     } else if(ts_.temp >= ts_.goalTemp + ts_.onMargin) {
-        ts_.goalState = AwaitingCool;
+        if(ts_.state != STATE::Cool) {
+            ts_.goalState = AwaitingCool;
+        }
     }else {
         ts_.goalState = None;
         return STATE::Idle;
