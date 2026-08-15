@@ -257,7 +257,6 @@ void setup()
 
   // STATE currentState = getCurrentState();
   // updateUIfromStates(currentState);
-  // UIsetManualBTNState(currentState);
 
   // onOFFButtonClick();
 

@@ -23,6 +23,10 @@ class ThermostatModel {
         long int getRemainingInteractionTime();
         void newInteraction() { ts_.lastInteractionTime = millis(); }
 
+        bool isUnlocked() const { return ts_.unlocked; }
+        void lock();
+        bool unlockTest(int val1, int val2, int val3, int val4);
+
         void setMode(MODE newMode);
         MODE getMode() const { return ts_.mode; }
         void setGoalTemp(float newTemp);

@@ -8,6 +8,11 @@ const int REG_STATE_DELAY = 10000;     // 10s in ms
 
 long int RESET_LIMIT_MS = 2 * 3600000; // 2 hours
 
+int CODE_VAL1 = 4; // 0-9
+int CODE_VAL2 = 1; // 0-9
+int CODE_VAL3 = 6; // 0-9
+int CODE_VAL4 = 0; // 0-9
+
 
 
 ThermostatModel::ThermostatModel(ROLE role, SyncManager& sync) : sync_(sync) {
@@ -77,26 +82,31 @@ void ThermostatModel::_setRelaysFromState(STATE newState) {
   }
 }
 
-// Recording leaving a heavy state
-// ts_.lastHeavyState = ts_.state;
-// _lastHeavyTime = millis();
-// ts_.lastHeavyTime = _lastHeavyTime;
 
-// STATE ThermostatModel::_resolvePendingState(STATE targetState) {
-//     long int remaining = getRemainingDelay();
-//     if (remaining > 0) {
-//         if (ts_.state != targetState && ts_.state != STATE::Idle) {
-//             if (_isHeavyState(ts_.state)) {
-//                 _recordHeavyExit();
-//             }
-//             return STATE::Idle;
-//         }
-//         return ts_.state;
-//     }
 
-//     ts_.goalState = None;
-//     return targetState;
-// }
+
+bool ThermostatModel::unlockTest(int val1, int val2, int val3, int val4) {
+    // locked = !locked;
+
+    if(val1 == CODE_VAL1 && val2 == CODE_VAL2 && val3 == CODE_VAL3 && val4 == CODE_VAL4) {
+        ts_.unlocked = true;
+        Serial.println("System unlocked!!");
+    }else {
+        ts_.unlocked = false;
+    }
+
+    sync_.publishThermState(ts_);
+    _notify();
+    return ts_.unlocked;
+}
+
+void ThermostatModel::lock() {
+    ts_.unlocked = false;
+    sync_.publishThermState(ts_);
+    _notify();
+}
+
+
 
 void ThermostatModel::setMode(MODE newMode) {
     if(ts_.role == ROLE::CHILD) {

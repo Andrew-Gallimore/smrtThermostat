@@ -14,11 +14,15 @@
 
 // #include "./stateMachine.h"
 #include "./core/core-structs.h"
-#include "./ui.h"
+// #include "./ui.h"
+#include "./view/ThermostatView.h"
 #include "./locking.h"
 #include "./remoteThermostat.h"
 #include "./colorHelper.h"
 #include "./thermometers.h"
+
+// Forward delcarations for view
+extern ThermostatView view;
 
 // Forward declarations for callback functions defined in main.cpp
 void onOFFButtonClick();
@@ -26,11 +30,10 @@ void onManualButtonClick();
 void onAutoButtonClick();
 void onLockButtonClick();
 
-// Forward delcaration for helper function in ui.cpp
-void UIapplyButtonStyle(lv_obj_t* btn, bool useLighterBg);
 
 
 // Regular declarations...
+void UIapplyButtonStyle(lv_obj_t* btn, bool useLighterBg);
 void UIinitializeMenu();
 void UIhideMenuButton();
 void UIshowMenuButton();

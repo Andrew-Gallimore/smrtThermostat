@@ -33,6 +33,31 @@ lv_obj_t* thermometersAddBtn = nullptr;
 
 lv_obj_t* thermometersAddInput = nullptr;
 
+
+void UIapplyButtonStyle(lv_obj_t* btn, bool useLighterBg = false) {
+    if (btn == nullptr) {
+        return;
+    }
+    lv_obj_set_style_radius(btn, 10, LV_PART_MAIN);
+    lv_obj_set_style_shadow_width(btn, 8, LV_PART_MAIN);
+    lv_obj_set_style_shadow_ofs_y(btn, 3, LV_PART_MAIN);
+    lv_obj_set_style_shadow_ofs_y(btn, 5, LV_STATE_PRESSED | LV_PART_MAIN);
+    lv_obj_set_style_shadow_ofs_x(btn, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_spread(btn, 0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_spread(btn, 1, LV_STATE_PRESSED | LV_PART_MAIN);
+    lv_obj_set_style_shadow_color(btn, lv_color_hex(0x000000), LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(btn, LV_OPA_50, LV_PART_MAIN);
+    if (useLighterBg) {
+        lv_obj_set_style_bg_color(btn, C_BTN_BG_Lighter, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(btn, C_BTN_Highlight_Lighter, LV_STATE_PRESSED | LV_PART_MAIN);
+    } else {
+        lv_obj_set_style_bg_color(btn, C_BTN_BG, LV_PART_MAIN);
+        lv_obj_set_style_bg_color(btn, C_BTN_Highlight, LV_STATE_PRESSED | LV_PART_MAIN);
+    }
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
+}
+
+
 struct TextPopupContext {
     lv_obj_t* popup;
     lv_obj_t* textarea;
@@ -476,7 +501,7 @@ void UIinitializeMenu() {
     lv_obj_add_event_cb(menuButton3, [](lv_event_t* e) {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
-            if(isUnlocked()) {
+            if(model->isUnlocked()) {
                 UIshowSettings();
                 UIhideMenu();
             }            
@@ -495,36 +520,35 @@ void UIinitializeMenu() {
         lv_event_code_t code = lv_event_get_code(e);
         if (code == LV_EVENT_CLICKED) {
 
-            if(isUnlocked()) {
+            if(model->isUnlocked()) {
                 // Locking the system
-                lockSystem();
+                model->lock();
 
                 // Showing the locking change
-                UIhideUnlock();
                 lv_img_set_src(btn5_icon, &lock_36);
                 // Setting settings icon to be half transparent if locked
                 lv_obj_set_style_opa(menu_settings_icon, LV_OPA_20, LV_PART_MAIN);
                 
                 // Restoring timer if we are in a correct state
-                STATE state = model->getCurrentState();
-                if(state != STATE::Idle) {
-                    UIshowTimer();
-                }
+                // STATE state = model->getCurrentState();
+                // if(state != STATE::Idle) {
+                //     UIshowTimer();
+                // }
                 return;
             }
 
             // Else, show a popup to enter the 4 digit code
             createCodePopup([](int val1, int val2, int val3, int val4) {
-                bool passed = unlockTest(val1, val2, val3, val4);
+                bool passed = model->unlockTest(val1, val2, val3, val4);
 
                 if(passed) {
-                    UIshowUnlock();
+                    // UIshowUnlock();
                     lv_img_set_src(btn5_icon, &unlock_36);
                     // Setting settings icon to be full opacity if unlocked
                     lv_obj_set_style_opa(menu_settings_icon, LV_OPA_100, LV_PART_MAIN);
 
                     // Hiding timer since we are unlocked
-                    UIhideTimer();
+                    // UIhideTimer();
                 }
             });
         }
@@ -575,7 +599,7 @@ void UIshowMenu() {
 
     menuVisible = true;
 
-    if(isUnlocked()) {
+    if(model->isUnlocked()) {
         lv_img_set_src(btn5_icon, &unlock_36);
         // Setting settings icon to be full opacity if unlocked
         lv_obj_set_style_opa(menu_settings_icon, LV_OPA_100, LV_PART_MAIN);
