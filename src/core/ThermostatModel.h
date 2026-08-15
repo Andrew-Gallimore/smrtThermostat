@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include <vector>
 #include "core-structs.h"
-#include "../locking.h"
 #include "SyncManager.h"
 
 // For HVAC relays

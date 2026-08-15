@@ -16,7 +16,6 @@
 #include "./core/core-structs.h"
 // #include "./ui.h"
 #include "./view/ThermostatView.h"
-#include "./locking.h"
 #include "./remoteThermostat.h"
 #include "./colorHelper.h"
 #include "./thermometers.h"

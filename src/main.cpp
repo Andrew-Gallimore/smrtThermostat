@@ -8,7 +8,6 @@
 #include "./remoteThermostat.h"
 #include "./storage.h"
 #include "./thermometers.h"
-#include "./locking.h"
 
 #include "./core/ThermostatModel.h"
 #include "./view/ThermostatView.h"
