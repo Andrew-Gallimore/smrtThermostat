@@ -100,7 +100,6 @@ private:
     void _hideOnButton();
     void _setTemperatureText(float temp);
     void _setGoalText();
-    long int _getRemainingDelaySeconds() const;
     long int _getRemainingInteractionSeconds() const;
 };
 

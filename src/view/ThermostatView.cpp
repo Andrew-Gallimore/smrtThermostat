@@ -737,28 +737,6 @@ void ThermostatView::_hideOnButton() {
     lv_obj_add_flag(onButton, LV_OBJ_FLAG_HIDDEN);
 }
 
-long int ThermostatView::_getRemainingDelaySeconds() const {
-    STATE fromState = ts_.lastHeavyState;
-    STATE toState = ts_.state;
-    long int delay = 0;
-    if ((fromState == STATE::Heat && toState == STATE::Cool) ||
-        (fromState == STATE::Cool && toState == STATE::Heat)) {
-        delay = LONG_STATE_DELAY;
-    } else if ((fromState == STATE::Heat && toState == STATE::Heat) ||
-               (fromState == STATE::Cool && toState == STATE::Cool)) {
-        delay = REG_STATE_DELAY;
-    }
-    if (ts_.lastHeavyTime == 0) {
-        return 0;
-    }
-    long int elapsed = millis() - ts_.lastHeavyTime;
-    long int remaining = delay - elapsed;
-    if (remaining < 0) {
-        remaining = 0;
-    }
-    return remaining / 1000;
-}
-
 long int ThermostatView::_getRemainingInteractionSeconds() const {
     if (ts_.lastInteractionTime == 0) {
         return 0;
@@ -856,21 +834,30 @@ void ThermostatView::_renderGoalTemperature() {
     if (goalText == nullptr) {
         return;
     }
+
+    // Picking color of goal text
     lv_color_t goalColor = C_GoalTemp;
-    if (ts_.goalState == GOAL_STATE::AwaitingHeat) {
+    if(ts_.goalState == GOAL_STATE::AwaitingHeat) {
         goalColor = C_Red;
-    } else if (ts_.goalState == GOAL_STATE::AwaitingCool) {
+    }else if(ts_.goalState == GOAL_STATE::AwaitingCool) {
+        goalColor = C_Blue;
+    }else if(ts_.state == STATE::Heat) {
+        goalColor = C_Red;
+    }else if(ts_.state == STATE::Cool) {
         goalColor = C_Blue;
     }
-    if (ts_.mode == MODE::Off) {
+
+    // Setting content of goal text
+    if(ts_.mode == MODE::Off) {
         lv_label_set_text(goalText, "Off");
-    } else if (ts_.mode == MODE::Auto) {
+    }else if(ts_.mode == MODE::Auto) {
         char buffer[20];
         snprintf(buffer, sizeof(buffer), "%.0f", round(ts_.goalTemp));
         lv_label_set_text(goalText, buffer);
-    } else {
+    }else{
         lv_label_set_text(goalText, "");
     }
+
     lv_obj_set_style_text_color(goalText, goalColor, LV_PART_MAIN);
     lv_obj_remove_flag(goalText, LV_OBJ_FLAG_HIDDEN);
     if (goalErrorText != nullptr) {
@@ -916,7 +903,8 @@ void ThermostatView::_renderLockIndicator() {
 
 void ThermostatView::_renderDelayIndicator() {
     Serial.println("Called _renderDelayIndicator with state: " + String(static_cast<int>(ts_.state)));
-    bool showDelay = ts_.goalState != None;
+
+    bool showDelay = ts_.goalState == GOAL_STATE::AwaitingHeat || ts_.goalState == GOAL_STATE::AwaitingCool;
     if (showDelay) {
         Serial.println("Rendering delay indicator: " + String(static_cast<int>(ts_.state)));
         _showDelay();

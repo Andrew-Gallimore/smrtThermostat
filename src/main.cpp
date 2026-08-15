@@ -55,11 +55,14 @@ void onTempDownButtonClick(lv_event_t* e) {
 
 void onManualHeatClick() {  
   if(whoAmI() == ROLE::PARENT) {
-      if(model->getCurrentState() == STATE::Heat || model->getGoalState() == GOAL_STATE::AwaitingHeat) {
-        model->requestManualState(STATE::Idle);
-      } else {
-        model->requestManualState(STATE::Heat);
-      }
+    Serial.println("Manual heat button clicked");
+    Serial.println("Current state: " + String(model->getCurrentState()));
+    Serial.println("Current goal state: " + String(model->getGoalState()));
+    if(model->getCurrentState() == STATE::Heat || model->getGoalState() == GOAL_STATE::AwaitingHeat) {
+      model->requestManualState(STATE::Idle);
+    } else {
+      model->requestManualState(STATE::Heat);
+    }
   } else {
     // sendHeatButtonClick();
   }

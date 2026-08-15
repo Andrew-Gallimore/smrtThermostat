@@ -139,6 +139,12 @@ void ThermostatModel::setMode(MODE newMode) {
             ts_.lastHeavyState = ts_.state;
         }
 
+        // Resetting goalState if we are doing the change
+        if((ts_.state == STATE::Idle || ts_.state == STATE::Fan)
+          && (computedNewState == STATE::Heat || computedNewState == STATE::Cool)) {
+            ts_.goalState = None;
+        }
+
         ts_.state = computedNewState;
         sync_.publishThermState(ts_);
     }
@@ -209,6 +215,9 @@ void ThermostatModel::requestManualState(STATE newState) {
     }
 
     STATE computedNewState = _computeManualStateChange(newState);
+
+    Serial.print("Computed new state: ");
+    Serial.println(computedNewState);
     if (computedNewState != ts_.state) {
         // If leaving heavy state, record that
         if(ts_.state == STATE::Heat || ts_.state == STATE::Cool) {
@@ -217,10 +226,21 @@ void ThermostatModel::requestManualState(STATE newState) {
             ts_.lastHeavyState = ts_.state;
         }
 
+        Serial.print("Changing state from ");
+        Serial.print(ts_.state);
+        Serial.print(" to ");
+        Serial.println(computedNewState);
+        // Resetting goalState if we are doing the change
+        if((ts_.state == STATE::Idle || ts_.state == STATE::Fan)
+          && (computedNewState == STATE::Heat || computedNewState == STATE::Cool)) {
+            ts_.goalState = None;
+        }
+
         ts_.state = computedNewState;
         sync_.publishThermState(ts_);
-        _notify();
     }
+
+    _notify();
 }
 
 
@@ -247,17 +267,21 @@ void ThermostatModel::subscribe(ThermostatObserver observer) {
 }
 
 void ThermostatModel::update() {
-    STATE newState = ts_.state;
+    STATE computedNewState = ts_.state;
     // For parent, we might want to check if the state needs to
     //      be updated
     if(ts_.role == ROLE::PARENT) {
         if(ts_.mode == MODE::Auto) {
-            newState = _computeAutoStateChange();
-        } else if(ts_.mode == MODE::Manual) {
-            newState = _computeManualStateChange(ts_.state);
+            computedNewState = _computeAutoStateChange();
+        }else if(ts_.mode == MODE::Manual) {
+            if(ts_.goalState == AwaitingHeat) {
+                computedNewState = _computeManualStateChange(STATE::Heat);
+            } else if(ts_.goalState == AwaitingCool) {
+                computedNewState = _computeManualStateChange(STATE::Cool);
+            }
         }
 
-        if(newState != ts_.state) {
+        if(computedNewState != ts_.state) {
             // If leaving heavy state, record that
             if(ts_.state == STATE::Heat || ts_.state == STATE::Cool) {
                 _lastHeavyTime = millis();
@@ -265,10 +289,17 @@ void ThermostatModel::update() {
                 ts_.lastHeavyState = ts_.state;
             }
 
-            ts_.state = newState;
+            // Resetting goalState if we are doing the change
+            if((ts_.state == STATE::Idle || ts_.state == STATE::Fan)
+              && (computedNewState == STATE::Heat || computedNewState == STATE::Cool)) {
+                ts_.goalState = None;
+            }
+
+            ts_.state = computedNewState;
             sync_.publishThermState(ts_);
-            _notify(); // Notify observers of the state change
         }
+
+        _notify(); // Notify observers of the state change
     }
 }
 
@@ -332,6 +363,8 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
         return STATE::Idle;
     }
 
+    STATE computedNewState = ts_.state;
+
     // Switching goals
     switch (ts_.state) {
         case STATE::Idle:
@@ -354,6 +387,7 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
                 return STATE::Fan;
             }else if(requestedState == STATE::Idle) {
                 ts_.goalState = None;
+                return STATE::Idle;
             }
             break;
         case STATE::Cool:
@@ -364,6 +398,7 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
                 return STATE::Fan;
             }else if(requestedState == STATE::Idle) {
                 ts_.goalState = None;
+                return STATE::Idle;
             }
             break;
         case STATE::Fan:
@@ -371,10 +406,13 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
                 ts_.goalState = None;
             }else if(requestedState == STATE::Heat) {
                 ts_.goalState = AwaitingHeat;
+                computedNewState = STATE::Idle;
+                // TODO: When switching from manual fan to awaiting heat/cool, it should go to
+                //       idle state but it should have the ablility to go directly to heat 
+                //       within this method call...
             }else if(requestedState == STATE::Cool) {
                 ts_.goalState = AwaitingCool;
-            }else {
-                ts_.goalState = None;
+                computedNewState = STATE::Idle;
             }
             break;
         default:
@@ -388,20 +426,20 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
     // Switching states now...
     
     // If we are in a heavy state, we need to wait for the delay in Idle
-    if(ts_.state == STATE::Heat) {
+    if(computedNewState == STATE::Heat) {
         if(ts_.goalState == GOAL_STATE::AwaitingCool) {
             return STATE::Idle;
         }
-    }else if(ts_.state == STATE::Cool) {
+    }else if(computedNewState == STATE::Cool) {
         if(ts_.goalState == GOAL_STATE::AwaitingHeat) {
             return STATE::Idle;
         }
-    }else if(ts_.state == STATE::Idle || ts_.state == STATE::Fan) {
+    }else if(computedNewState == STATE::Idle || computedNewState == STATE::Fan) {
         // Checking if we can transition to the requested
         //      heat/cool state now because of the delay timer
         if(getRemainingDelay() > 0) {
             // Stay in the current state until the delay is over
-            return ts_.state;
+            return computedNewState;
         }
 
 
