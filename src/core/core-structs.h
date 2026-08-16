@@ -27,7 +27,7 @@ enum GOAL_STATE {
 struct ThermostatState {
   ROLE role = ROLE::PARENT;
   MODE mode = MODE::Off;
-  MODE lastMode = MODE::Off;
+  MODE lastMode = MODE::Manual; // last mode before turning off
   STATE state = STATE::Idle; // active physical state
   GOAL_STATE goalState = None; // desired next transition
   float temp = 70;

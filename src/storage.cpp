@@ -432,20 +432,20 @@ void storeTempGoal(float newTempGoal) {
   updatedStates = true;
 }
 
-void storeState(STATE newState) {
-  if(newState == storage_state) {
-    return;
-  }
-  storage_state = newState;
-  updatedStates = true;
-}
-void storeLastState(STATE newLastState) {
-  if(newLastState == storage_lastState) {
-    return;
-  }
-  storage_lastState = newLastState;
-  updatedStates = true;
-}
+// void storeState(STATE newState) {
+//   if(newState == storage_state) {
+//     return;
+//   }
+//   storage_state = newState;
+//   updatedStates = true;
+// }
+// void storeLastState(STATE newLastState) {
+//   if(newLastState == storage_lastState) {
+//     return;
+//   }
+//   storage_lastState = newLastState;
+//   updatedStates = true;
+// }
 void storeLastHeavyState(STATE newLastHeavyState) {
   if(newLastHeavyState == storage_lastHeavyState) {
     return;
@@ -454,13 +454,13 @@ void storeLastHeavyState(STATE newLastHeavyState) {
   updatedStates = true;
 }
 
-void storeMode(MODE newMode) {
-  if(newMode == storage_mode) {
-    return;
-  }
-  storage_mode = newMode;
-  updatedStates = true;
-}
+// void storeMode(MODE newMode) {
+//   if(newMode == storage_mode) {
+//     return;
+//   }
+//   storage_mode = newMode;
+//   updatedStates = true;
+// }
 void storeLastMode(MODE newLastMode) {
   if(newLastMode == storage_lastMode) {
     return;
@@ -499,9 +499,9 @@ int getMaxTemp() {
   return MAX_GOAL_TEMP;
 }
 
-unsigned long getStoredTimestamp() {
-  return lastStorageTime;
-}
+// unsigned long getStoredTimestamp() {
+//   return lastStorageTime;
+// }
 
 float getStoredTemp() {
   return storage_temp;
@@ -510,19 +510,19 @@ float getStoredTempGoal() {
   return storage_tempGoal;
 }
 
-STATE getStoredState() {
-  return storage_state;
-}
-STATE getStoredLastState() {
-  return storage_lastState;
-}
+// STATE getStoredState() {
+//   return storage_state;
+// }
+// STATE getStoredLastState() {
+//   return storage_lastState;
+// }
 STATE getStoredLastHeavyState() {
   return storage_lastHeavyState;
 }
 
-MODE getStoredMode() {
-  return storage_mode;
-}
+// MODE getStoredMode() {
+//   return storage_mode;
+// }
 MODE getStoredLastMode() {
   return storage_lastMode;
 }

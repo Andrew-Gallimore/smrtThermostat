@@ -45,7 +45,6 @@ class ThermostatModel {
 
         // Storage initialization
         void initializeFromStorage(MODE lastMode,
-                                   float lastTempGoal,
                                    float lastTemp,
                                    STATE lastHeavyState);
         void restoreLastMode();

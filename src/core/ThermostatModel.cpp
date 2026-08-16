@@ -18,28 +18,26 @@ int CODE_VAL4 = 0; // 0-9
 ThermostatModel::ThermostatModel(ROLE role, SyncManager& sync) : sync_(sync) {
     ts_.role = role;
     ts_.mode = MODE::Off;
-    ts_.lastMode = MODE::Manual;
+    ts_.lastMode = MODE::Manual; // Set by storage
     ts_.state = STATE::Idle;
     ts_.goalState = None;
-    ts_.temp = 70;
+    ts_.temp = 70; // Set by storage
     ts_.goalTemp = 70;
     ts_.onMargin = 1.0f;
     ts_.offMargin = 1.0f;
     ts_.unlocked = false;
     ts_.delayActive = false;
-    ts_.lastHeavyState = STATE::Idle;
+    ts_.lastHeavyState = STATE::Idle; // Set by storage
     ts_.lastHeavyTime = 0;
     ts_.lastInteractionTime = 0;
 }
 
-void ThermostatModel::initializeFromStorage(MODE lastMode,
-                                             float lastTempGoal,
+void ThermostatModel::initializeFromStorage(MODE lastLastMode,
                                              float lastTemp,
-                                             STATE lastHeavyState) {
-    ts_.mode = lastMode;
-    ts_.goalTemp = lastTempGoal;
+                                             STATE lastLastHeavyState) {
+    ts_.lastMode = lastLastMode;
     ts_.temp = lastTemp;
-    ts_.lastHeavyState = lastHeavyState;
+    ts_.lastHeavyState = lastLastHeavyState;
     ts_.goalState = None;
 }
 
@@ -121,19 +119,21 @@ void ThermostatModel::setMode(MODE newMode) {
     // Parent logic
     STATE computedNewState = ts_.state;
 
-    // Update local state and sync
+    // Its already that mode, do nothing...
     if(ts_.mode == newMode) return;
     
     if(newMode == MODE::Off) {
         computedNewState = STATE::Idle;
-        ts_.lastMode = ts_.mode;
         ts_.goalState = None;
     } else if(newMode == MODE::Auto) {
         // Clear any stale manual pending goal when switching into Auto mode.
         ts_.goalState = None;
+        ts_.lastMode = newMode;
+        ts_.goalTemp = round(ts_.temp); // Reset goalTemp to current temp when switching to Auto
         computedNewState = _computeAutoStateChange();
     } else if(newMode == MODE::Manual) {
         // Switching to manual mode preserves the current state and any pending manual goal.
+        ts_.lastMode = newMode;
         computedNewState = ts_.state;
     }
 

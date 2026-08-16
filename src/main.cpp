@@ -195,10 +195,16 @@ void setup()
 
   // NOTE: Should come after storage initialization
   MODE lastMode = getStoredLastMode();
-  float lastTempGoal = getStoredTempGoal();
   float lastTemp = getStoredTemp();
   STATE lastHeavyState = getStoredLastHeavyState();
-  model->initializeFromStorage(lastMode, lastTempGoal, lastTemp, lastHeavyState);
+  model->initializeFromStorage(lastMode, lastTemp, lastHeavyState);
+
+  // Subscribe storage to model updates so persistent values are kept in sync.
+  model->subscribe([](const ThermostatState& state) {
+      storeTemp(state.temp);
+      storeLastHeavyState(state.lastHeavyState);
+      storeLastMode(state.lastMode);
+  });
 
   // Initialize and bind the view to the model
   view.initialize();

@@ -61,15 +61,15 @@ void storeThermometerList(const std::vector<std::string>& thermometerNames);
 // Getters
 int getMinTemp();
 int getMaxTemp();
-unsigned long getStoredTimestamp();
+// unsigned long getStoredTimestamp();
 float getStoredTemp();
 float getStoredTempGoal();
 
-STATE getStoredState();
-STATE getStoredLastState();
+// STATE getStoredState();
+// STATE getStoredLastState();
 STATE getStoredLastHeavyState();
 
-MODE getStoredMode();
+// MODE getStoredMode();
 MODE getStoredLastMode();
 
 void getStoredNetworkSSID(char* SSIDBuffer, size_t bufSize);
