@@ -461,13 +461,15 @@ void ThermostatView::_showHeatZone() {
     }
     heatZoneVisible = true;
     _cancelStateZoneAnimations();
+    lv_obj_set_y(heatZone, -70);
     lv_anim_init(&heatZoneAnim);
     lv_anim_set_var(&heatZoneAnim, heatZone);
     lv_anim_set_exec_cb(&heatZoneAnim, [](void* obj, int32_t v) {
         lv_obj_set_y(static_cast<lv_obj_t*>(obj), v);
     });
-    lv_anim_set_values(&heatZoneAnim, lv_obj_get_y(heatZone), 0);
+    lv_anim_set_values(&heatZoneAnim, -70, 0);
     lv_anim_set_time(&heatZoneAnim, 3000);
+    lv_anim_set_early_apply(&heatZoneAnim, true);
     lv_anim_set_path_cb(&heatZoneAnim, lv_anim_path_ease_out);
     lv_anim_set_completed_cb(&heatZoneAnim, ThermostatView::_heatZoneAnimationReadyCb);
     lv_anim_start(&heatZoneAnim);
@@ -479,13 +481,15 @@ void ThermostatView::_hideHeatZone() {
     }
     heatZoneVisible = false;
     _cancelStateZoneAnimations();
+    lv_obj_set_y(heatZone, 0);
     lv_anim_init(&heatZoneAnim);
     lv_anim_set_var(&heatZoneAnim, heatZone);
     lv_anim_set_exec_cb(&heatZoneAnim, [](void* obj, int32_t v) {
         lv_obj_set_y(static_cast<lv_obj_t*>(obj), v);
     });
-    lv_anim_set_values(&heatZoneAnim, lv_obj_get_y(heatZone), -70);
+    lv_anim_set_values(&heatZoneAnim, 0, -70);
     lv_anim_set_time(&heatZoneAnim, 1500);
+    lv_anim_set_early_apply(&heatZoneAnim, true);
     lv_anim_set_path_cb(&heatZoneAnim, lv_anim_path_ease_in);
     lv_anim_set_completed_cb(&heatZoneAnim, ThermostatView::_heatZoneAnimationReadyCb);
     lv_anim_start(&heatZoneAnim);
@@ -528,13 +532,15 @@ void ThermostatView::_showCoolZone() {
     }
     coolZoneVisible = true;
     _cancelStateZoneAnimations();
+    lv_obj_set_y(coolZone, 70);
     lv_anim_init(&coolZoneAnim);
     lv_anim_set_var(&coolZoneAnim, coolZone);
     lv_anim_set_exec_cb(&coolZoneAnim, [](void* obj, int32_t v) {
         lv_obj_set_y(static_cast<lv_obj_t*>(obj), v);
     });
-    lv_anim_set_values(&coolZoneAnim, lv_obj_get_y(coolZone), 0);
+    lv_anim_set_values(&coolZoneAnim, 70, 0);
     lv_anim_set_time(&coolZoneAnim, 3000);
+    lv_anim_set_early_apply(&coolZoneAnim, true);
     lv_anim_set_path_cb(&coolZoneAnim, lv_anim_path_ease_out);
     lv_anim_set_completed_cb(&coolZoneAnim, ThermostatView::_coolZoneAnimationReadyCb);
     lv_anim_start(&coolZoneAnim);
@@ -546,13 +552,15 @@ void ThermostatView::_hideCoolZone() {
     }
     coolZoneVisible = false;
     _cancelStateZoneAnimations();
+    lv_obj_set_y(coolZone, 0);
     lv_anim_init(&coolZoneAnim);
     lv_anim_set_var(&coolZoneAnim, coolZone);
     lv_anim_set_exec_cb(&coolZoneAnim, [](void* obj, int32_t v) {
         lv_obj_set_y(static_cast<lv_obj_t*>(obj), v);
     });
-    lv_anim_set_values(&coolZoneAnim, lv_obj_get_y(coolZone), 70);
+    lv_anim_set_values(&coolZoneAnim, 0, 70);
     lv_anim_set_time(&coolZoneAnim, 1500);
+    lv_anim_set_early_apply(&coolZoneAnim, true);
     lv_anim_set_path_cb(&coolZoneAnim, lv_anim_path_ease_in);
     lv_anim_set_completed_cb(&coolZoneAnim, ThermostatView::_coolZoneAnimationReadyCb);
     lv_anim_start(&coolZoneAnim);
