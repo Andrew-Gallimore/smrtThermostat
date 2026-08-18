@@ -30,6 +30,8 @@ ThermostatModel::ThermostatModel(ROLE role) {
     ts_.lastHeavyState = STATE::Idle; // Set by storage
     ts_.lastHeavyTime = 0;
     ts_.lastInteractionTime = 0;
+    _lastHeavyState = STATE::Idle;
+    _lastHeavyTime = 0;
     oldTs_ = ts_;
 }
 
@@ -53,7 +55,12 @@ void ThermostatModel::initializeFromStorage(MODE lastLastMode,
 
 void ThermostatModel::restoreLastMode() {
     if(ts_.role == ROLE::CHILD) {
-        Serial.println("WARN: Child cannot restore last mode.");
+        if (commandSender_) {
+            Command cmd;
+            cmd.type = COMMAND_TYPE::SetMode;
+            cmd.mode = ts_.lastMode;
+            commandSender_(cmd);
+        }
         return;
     }
 
@@ -288,6 +295,8 @@ void ThermostatModel::applyRemoteState(const ThermostatState& remoteThermState) 
     ROLE currentRole = ts_.role;
     ts_ = remoteThermState;
     ts_.role = currentRole;
+    _lastHeavyState = ts_.lastHeavyState;
+    _lastHeavyTime = ts_.lastHeavyTime;
     _notify(); // Notify observers of the state change
 }
 
@@ -368,7 +377,7 @@ long int ThermostatModel::_getCalculatedDelay(STATE fromState, STATE toState) {
         requiredDelay = REG_STATE_DELAY;
     }
     
-    long int timeSinceLastHeavy = millis() - _lastHeavyTime;
+    long int timeSinceLastHeavy = millis() - ts_.lastHeavyTime;
     long int remainingDelay = requiredDelay - timeSinceLastHeavy;
     return (remainingDelay > 0) ? remainingDelay : 0;
 }
@@ -441,6 +450,7 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
         case STATE::Fan:
             if(requestedState == STATE::Idle) {
                 ts_.goalState = None;
+                return STATE::Idle;
             }else if(requestedState == STATE::Heat) {
                 ts_.goalState = AwaitingHeat;
                 computedNewState = STATE::Idle;

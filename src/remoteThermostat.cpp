@@ -79,13 +79,19 @@ char remoteStateTopic[64];
 // Helpers for sending state and commands between parent and child thermostats
 
 String serializeThermostatState(const ThermostatState& state) {
+    long int lastHeavyElapsed = 0;
+    if (state.lastHeavyTime > 0) {
+        lastHeavyElapsed = millis() - state.lastHeavyTime;
+    }
     return String("mode=") + String((int)state.mode)
          + ";lastMode=" + String((int)state.lastMode)
          + ";state=" + String((int)state.state)
          + ";goalState=" + String((int)state.goalState)
          + ";temp=" + String(state.temp, 1)
          + ";goalTemp=" + String(state.goalTemp, 1)
-         + ";unlocked=" + String(state.unlocked ? 1 : 0);
+         + ";unlocked=" + String(state.unlocked ? 1 : 0)
+         + ";lastHeavyState=" + String((int)state.lastHeavyState)
+         + ";lastHeavyElapsed=" + String(lastHeavyElapsed);
 }
 
 bool deserializeThermostatState(const char* payload, ThermostatState& outState) {
@@ -96,19 +102,23 @@ bool deserializeThermostatState(const char* payload, ThermostatState& outState) 
     float temp = 0.0f;
     float goalTemp = 0.0f;
     int unlocked = 0;
+    int lastHeavyState = 0;
+    long int lastHeavyElapsed = 0;
 
     int matched = sscanf(payload,
-        "mode=%d;lastMode=%d;state=%d;goalState=%d;temp=%f;goalTemp=%f;unlocked=%d",
+        "mode=%d;lastMode=%d;state=%d;goalState=%d;temp=%f;goalTemp=%f;unlocked=%d;lastHeavyState=%d;lastHeavyElapsed=%ld",
         &mode,
         &lastMode,
         &state,
         &goalState,
         &temp,
         &goalTemp,
-        &unlocked
+        &unlocked,
+        &lastHeavyState,
+        &lastHeavyElapsed
     );
 
-    if (matched == 7) {
+    if (matched == 9) {
         outState.mode = static_cast<MODE>(mode);
         outState.lastMode = static_cast<MODE>(lastMode);
         outState.state = static_cast<STATE>(state);
@@ -116,6 +126,14 @@ bool deserializeThermostatState(const char* payload, ThermostatState& outState) 
         outState.temp = temp;
         outState.goalTemp = goalTemp;
         outState.unlocked = (unlocked != 0);
+        outState.lastHeavyState = static_cast<STATE>(lastHeavyState);
+        if (lastHeavyElapsed < 0) {
+            lastHeavyElapsed = 0;
+        }
+        if (lastHeavyElapsed > millis()) {
+            lastHeavyElapsed = millis();
+        }
+        outState.lastHeavyTime = millis() - lastHeavyElapsed;
         return true;
     }
 
