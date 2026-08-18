@@ -15,7 +15,7 @@ int CODE_VAL4 = 0; // 0-9
 
 
 
-ThermostatModel::ThermostatModel(ROLE role, SyncManager& sync) : sync_(sync) {
+ThermostatModel::ThermostatModel(ROLE role) {
     ts_.role = role;
     ts_.mode = MODE::Off;
     ts_.lastMode = MODE::Manual; // Set by storage
@@ -30,6 +30,15 @@ ThermostatModel::ThermostatModel(ROLE role, SyncManager& sync) : sync_(sync) {
     ts_.lastHeavyState = STATE::Idle; // Set by storage
     ts_.lastHeavyTime = 0;
     ts_.lastInteractionTime = 0;
+    oldTs_ = ts_;
+}
+
+void ThermostatModel::setCommandSender(CommandSender sender) {
+    commandSender_ = sender;
+}
+
+void ThermostatModel::setStatePublisher(StatePublisher publisher) {
+    statePublisher_ = publisher;
 }
 
 void ThermostatModel::initializeFromStorage(MODE lastLastMode,
@@ -39,6 +48,7 @@ void ThermostatModel::initializeFromStorage(MODE lastLastMode,
     ts_.temp = lastTemp;
     ts_.lastHeavyState = lastLastHeavyState;
     ts_.goalState = None;
+    oldTs_ = ts_;
 }
 
 void ThermostatModel::restoreLastMode() {
@@ -93,14 +103,18 @@ bool ThermostatModel::unlockTest(int val1, int val2, int val3, int val4) {
         ts_.unlocked = false;
     }
 
-    sync_.publishThermState(ts_);
+    if (statePublisher_) {
+        statePublisher_(ts_);
+    }
     _notify();
     return ts_.unlocked;
 }
 
 void ThermostatModel::lock() {
     ts_.unlocked = false;
-    sync_.publishThermState(ts_);
+    if (statePublisher_) {
+        statePublisher_(ts_);
+    }
     _notify();
 }
 
@@ -108,11 +122,12 @@ void ThermostatModel::lock() {
 
 void ThermostatModel::setMode(MODE newMode) {
     if(ts_.role == ROLE::CHILD) {
-        // Send command to parent to change mode
-        Command cmd;
-        cmd.type = COMMAND_TYPE::SetMode;
-        cmd.mode = newMode;
-        sync_.publishCommand(cmd);
+        if (commandSender_) {
+            Command cmd;
+            cmd.type = COMMAND_TYPE::SetMode;
+            cmd.mode = newMode;
+            commandSender_(cmd);
+        }
         return;
     }
 
@@ -156,7 +171,9 @@ void ThermostatModel::setMode(MODE newMode) {
         }
 
         ts_.state = computedNewState;
-        sync_.publishThermState(ts_);
+        if (statePublisher_) {
+            statePublisher_(ts_);
+        }
     }
 
     // Notify observers of the change
@@ -165,11 +182,12 @@ void ThermostatModel::setMode(MODE newMode) {
 
 void ThermostatModel::setGoalTemp(float newTemp) {
     if(ts_.role == ROLE::CHILD) {
-        // Send command to parent to change target temperature
-        Command cmd;
-        cmd.type = COMMAND_TYPE::SetTempGoal;
-        cmd.tempGoal = newTemp;
-        sync_.publishCommand(cmd);
+        if (commandSender_) {
+            Command cmd;
+            cmd.type = COMMAND_TYPE::SetTempGoal;
+            cmd.tempGoal = newTemp;
+            commandSender_(cmd);
+        }
         return;
     }
 
@@ -180,7 +198,6 @@ void ThermostatModel::setGoalTemp(float newTemp) {
         update();
     }
 
-    sync_.publishThermState(ts_);
     _notify(); // Notify observers of the change
 }
 
@@ -195,10 +212,9 @@ void ThermostatModel::setTemp(float newTemp) {
 
     if (ts_.mode == MODE::Auto) {
         update();
-    }else {
+    } else {
         // The reason this is in the else is because update automatically
         //      handles sync and notifying
-        sync_.publishThermState(ts_);
         _notify(); // Notify observers of the change
     }
 
@@ -219,11 +235,12 @@ void ThermostatModel::requestManualState(STATE newState) {
     }
     
     if(ts_.role == ROLE::CHILD) {
-        // Send command to parent to change state
-        Command cmd;
-        cmd.type = COMMAND_TYPE::SetState;
-        cmd.state = newState;
-        sync_.publishCommand(cmd);
+        if (commandSender_) {
+            Command cmd;
+            cmd.type = COMMAND_TYPE::SetState;
+            cmd.state = newState;
+            commandSender_(cmd);
+        }
         return;
     }
 
@@ -250,7 +267,6 @@ void ThermostatModel::requestManualState(STATE newState) {
         }
 
         ts_.state = computedNewState;
-        sync_.publishThermState(ts_);
     }
 
     _notify();
@@ -269,9 +285,7 @@ void ThermostatModel::applyRemoteState(const ThermostatState& remoteThermState) 
         return;
     }
 
-    // TODO: Have more complex logic here?
     ts_ = remoteThermState;
-
     _notify(); // Notify observers of the state change
 }
 
@@ -309,7 +323,6 @@ void ThermostatModel::update() {
             }
 
             ts_.state = computedNewState;
-            sync_.publishThermState(ts_);
         }
 
         _notify(); // Notify observers of the state change
@@ -322,10 +335,16 @@ void ThermostatModel::_notify() {
         // Update relays based on the new state
         _setRelaysFromState(ts_.state);
 
+        if(ts_.role == ROLE::PARENT && statePublisher_) {
+            statePublisher_(ts_);
+        }
+
         // Notify observers of the change(s)
         for(auto& observer : observers_) {
             observer(ts_);
         }
+
+        oldTs_ = ts_;
     }
 }
 

@@ -3,24 +3,27 @@
 
 #include <Arduino.h>
 #include <vector>
+#include <functional>
 #include "core-structs.h"
-#include "SyncManager.h"
 
 // For HVAC relays
 #define GPIO_RELAY1  40
 #define GPIO_RELAY2  2
 #define GPIO_RELAY3  1
 
-
 using ThermostatObserver = std::function<void(const ThermostatState&)>;
+using CommandSender = std::function<void(const Command&)>;
+using StatePublisher = std::function<void(const ThermostatState&)>;
 
 class ThermostatModel {
     public:
-        ThermostatModel(ROLE role, SyncManager& sync);
+        ThermostatModel(ROLE role);
         void update();
         long int getRemainingDelay();
         long int getRemainingInteractionTime();
         void newInteraction() { ts_.lastInteractionTime = millis(); }
+        void setCommandSender(CommandSender sender);
+        void setStatePublisher(StatePublisher publisher);
 
         bool isUnlocked() const { return ts_.unlocked; }
         void lock();
@@ -58,13 +61,12 @@ class ThermostatModel {
         STATE _lastHeavyState;
         long int _lastHeavyTime;
         long int _lastInteractionTime;
+        CommandSender commandSender_;
+        StatePublisher statePublisher_;
 
         // Observers
         std::vector<ThermostatObserver> observers_;
         void _notify();
-
-        // Sync manager for network communication
-        SyncManager& sync_;
 };
 
 #endif // THERMOSTAT_MODEL_H

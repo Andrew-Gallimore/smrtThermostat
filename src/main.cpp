@@ -13,7 +13,6 @@
 #include "./view/ThermostatView.h"
 
 ThermostatModel* model;
-SyncManager* syncManager;
 ThermostatView view;
 
 
@@ -189,9 +188,8 @@ void setup()
   
   setupMQTT();
 
-  // Create the thermostat model and managers
-  syncManager = new SyncManager();
-  model = new ThermostatModel(ROLE::PARENT, *syncManager);
+  // Create the thermostat model
+  model = new ThermostatModel(whoAmI());
 
   // NOTE: Should come after storage initialization
   MODE lastMode = getStoredLastMode();
@@ -199,7 +197,20 @@ void setup()
   STATE lastHeavyState = getStoredLastHeavyState();
   model->initializeFromStorage(lastMode, lastTemp, lastHeavyState);
 
-  // Subscribe storage to model updates so persistent values are kept in sync.
+  // Child/parent thermostat sync callbacks to the model
+  model->setCommandSender([](const Command& cmd) {
+      sendSyncCommand(cmd);
+  });
+  model->setStatePublisher([](const ThermostatState& state) {
+      publishSyncState(state);
+  });
+
+  // Home Assistant state publishing to the model
+  model->subscribe([](const ThermostatState& state) {
+      publishHAState(state);
+  });
+
+  // Persistant storage callbacks for the model state
   model->subscribe([](const ThermostatState& state) {
       storeTemp(state.temp);
       storeLastHeavyState(state.lastHeavyState);

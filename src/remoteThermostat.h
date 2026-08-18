@@ -44,4 +44,8 @@ void setWiFiCredentials(char* ssid, char* password);
 void setupMQTT();
 void loopMQTT();
 
+void publishSyncState(const ThermostatState& state);
+void sendSyncCommand(const Command& cmd);
+void publishHAState(const ThermostatState& state);
+
 #endif // REMOTE_THERMOSTAT_H
