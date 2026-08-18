@@ -43,6 +43,7 @@ void setWiFiCredentials(char* ssid, char* password);
 
 void setupMQTT();
 void loopMQTT();
+void processNetworkToModelEvents();
 
 void publishSyncState(const ThermostatState& state);
 void sendSyncCommand(const Command& cmd);
