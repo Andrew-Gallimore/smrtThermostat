@@ -383,13 +383,16 @@ long int ThermostatModel::getRemainingDelay() {
 }
 
 long int ThermostatModel::getRemainingInteractionTime() {
+    if (ts_.lastInteractionTime == 0) {
+        return 0;
+    }
     long int timeSinceLastInteraction = millis() - ts_.lastInteractionTime;
     long int remainingTime = RESET_LIMIT_MS - timeSinceLastInteraction;
     return (remainingTime > 0) ? remainingTime : 0;
 }
 
 STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
-    if(!isUnlocked() && getRemainingInteractionTime() == 0) {
+    if(!isUnlocked() && ts_.lastInteractionTime != 0 && getRemainingInteractionTime() == 0) {
         Serial.println(">>>> Turning off due to timer...");
         ts_.goalState = None;
         return STATE::Idle;
@@ -488,7 +491,7 @@ STATE ThermostatModel::_computeManualStateChange(STATE requestedState) {
 
 
 STATE ThermostatModel::_computeAutoStateChange() {
-    if(!isUnlocked() && getRemainingInteractionTime() == 0) {
+    if(!isUnlocked() && ts_.lastInteractionTime != 0 && getRemainingInteractionTime() == 0) {
         Serial.println(">>>> Turning off due to timer...");
         ts_.goalState = None;
         return STATE::Idle;

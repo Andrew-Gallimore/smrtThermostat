@@ -22,6 +22,7 @@ class ThermostatModel {
         long int getRemainingDelay();
         long int getRemainingInteractionTime();
         void newInteraction() { ts_.lastInteractionTime = millis(); }
+        void clearInteractionTimer() { ts_.lastInteractionTime = 0; }
         void setCommandSender(CommandSender sender);
         void setStatePublisher(StatePublisher publisher);
 

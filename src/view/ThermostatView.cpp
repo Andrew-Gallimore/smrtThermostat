@@ -901,7 +901,7 @@ void ThermostatView::_renderLockIndicator() {
         return;
     }
     _hideUnlock();
-    if (ts_.state != STATE::Idle) {
+    if (ts_.state != STATE::Idle && ts_.lastInteractionTime != 0) {
         _showTimer();
         if (timerMsg != nullptr) {
             long int remaining = _getRemainingInteractionSeconds();

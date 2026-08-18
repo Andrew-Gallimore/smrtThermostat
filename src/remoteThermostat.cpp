@@ -294,6 +294,7 @@ void processNetworkToModelEvents() {
 
     NetworkToModelEvent event;
     while (xQueueReceive(networkToModelQueue, &event, 0) == pdTRUE) {
+        model->clearInteractionTimer();
         switch (event.type) {
             case N2M_SetGoalTemp:
                 model->setGoalTemp(event.temperature);
