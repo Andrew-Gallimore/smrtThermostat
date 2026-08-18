@@ -292,7 +292,6 @@ void loop() {
   processNetworkToModelEvents();
   loopMQTT();
 
-  // view.render();
 
   if(flag_offButton) {
     flag_offButton = false;

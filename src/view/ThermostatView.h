@@ -56,6 +56,7 @@ private:
     lv_obj_t* goalSpinner = nullptr;
 
     lv_obj_t* onButton = nullptr;
+    lv_timer_t* temperatureTimer = nullptr;
 
     bool tempInitialized = false;
     bool tempInErrorState = false;
@@ -70,6 +71,7 @@ private:
     void _initializeHeatZone();
     void _initializeCoolZone();
     void _initializeTemperature();
+    void _initializeTemperatureRefreshTimer();
     void _initializeGoal();
     void _initializeAutoButtons();
     void _initializeManualButtons();
@@ -81,6 +83,8 @@ private:
     void _renderGoalTemperature();
     void _renderLockIndicator();
     void _renderDelayIndicator();
+
+    static void _temperatureTimerCallback(lv_timer_t* timer);
 
     void _showDelay();
     void _hideDelay();

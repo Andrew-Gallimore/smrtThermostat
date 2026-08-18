@@ -52,6 +52,17 @@ static void ThermostatView_onButtonEvent(lv_event_t* e) {
     lv_timer_set_user_data(timer, target);
 }
 
+void ThermostatView::_temperatureTimerCallback(lv_timer_t* timer) {
+    if (timer == nullptr) {
+        return;
+    }
+    ThermostatView* view = static_cast<ThermostatView*>(lv_timer_get_user_data(timer));
+    if (view == nullptr) {
+        return;
+    }
+    view->_renderTemperature();
+}
+
 
 static const long int RESET_LIMIT_MS = 2 * 3600000;
 static const long int LONG_STATE_DELAY = 480000;
@@ -62,9 +73,14 @@ ThermostatView::ThermostatView() {
     tempInErrorState = false;
     lastGoodTemp = 0;
     lastGoodTempTime = 0;
+    temperatureTimer = nullptr;
 }
 
 ThermostatView::~ThermostatView() {
+    if (temperatureTimer != nullptr) {
+        lv_timer_delete(temperatureTimer);
+        temperatureTimer = nullptr;
+    }
 }
 
 void ThermostatView::bind(ThermostatModel* model) {
@@ -85,6 +101,7 @@ void ThermostatView::initialize() {
     _initializeHeatZone();
     _initializeCoolZone();
     _initializeTemperature();
+    _initializeTemperatureRefreshTimer();
     _initializeGoal();
     _initializeAutoButtons();
     _initializeManualButtons();
@@ -541,6 +558,17 @@ void ThermostatView::_initializeTemperature() {
     tempInErrorState = false;
     lastGoodTemp = ts_.temp;
     lastGoodTempTime = millis();
+}
+
+void ThermostatView::_initializeTemperatureRefreshTimer() {
+    temperatureTimer = lv_timer_create_basic();
+    if (temperatureTimer == nullptr) {
+        return;
+    }
+    lv_timer_set_cb(temperatureTimer, ThermostatView::_temperatureTimerCallback);
+    lv_timer_set_user_data(temperatureTimer, this);
+    lv_timer_set_period(temperatureTimer, 5000);
+    lv_timer_set_repeat_count(temperatureTimer, -1);
 }
 
 void ThermostatView::_setTemperatureText(float temp) {
