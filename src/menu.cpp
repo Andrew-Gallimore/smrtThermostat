@@ -613,12 +613,13 @@ void UIshowMenu() {
     if(currentMode == MODE::Auto) {
         lv_obj_set_style_bg_color(menuButton2, C_BTN_Highlight, LV_PART_MAIN);
         lv_obj_set_style_bg_color(menuButton4, C_BTN_BG, LV_PART_MAIN);
-    }else if(currentMode == MODE::Manual) {
+    } else if(currentMode == MODE::Manual) {
         lv_obj_set_style_bg_color(menuButton2, C_BTN_BG, LV_PART_MAIN);
         lv_obj_set_style_bg_color(menuButton4, C_BTN_Highlight, LV_PART_MAIN);
     }
     
     lv_obj_remove_flag(menuOverlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(menuOverlay);
     UIFadeInMenuButtons();
 }
 

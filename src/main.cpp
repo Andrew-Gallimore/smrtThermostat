@@ -52,51 +52,30 @@ void onTempDownButtonClick(lv_event_t* e) {
 }
 
 void onManualHeatClick() {  
-  if(whoAmI() == ROLE::PARENT) {
-    Serial.println("Manual heat button clicked");
-    Serial.println("Current state: " + String(model->getCurrentState()));
-    Serial.println("Current goal state: " + String(model->getGoalState()));
-    if(model->getCurrentState() == STATE::Heat || model->getGoalState() == GOAL_STATE::AwaitingHeat) {
-      model->requestManualState(STATE::Idle);
-    } else {
-      model->requestManualState(STATE::Heat);
-    }
+  if(model->getCurrentState() == STATE::Heat || model->getGoalState() == GOAL_STATE::AwaitingHeat) {
+    model->requestManualState(STATE::Idle);
   } else {
-    // sendHeatButtonClick();
+    model->requestManualState(STATE::Heat);
   }
 }
 
 void onManualCoolClick() {
-  if(whoAmI() == ROLE::PARENT) {
-    if(model->getCurrentState() == STATE::Cool || model->getGoalState() == GOAL_STATE::AwaitingCool) {
-      model->requestManualState(STATE::Idle);
-    } else {
-      model->requestManualState(STATE::Cool);
-    }
+  if(model->getCurrentState() == STATE::Cool || model->getGoalState() == GOAL_STATE::AwaitingCool) {
+    model->requestManualState(STATE::Idle);
   } else {
-    // sendCoolButtonClick();
+    model->requestManualState(STATE::Cool);
   }
 }
 
 void onManualFanClick() {
-  if(whoAmI() == ROLE::PARENT) {
-    if(model->getCurrentState() == STATE::Fan) {
-      model->requestManualState(STATE::Idle);
-    }else {
-      model->requestManualState(STATE::Fan);
-    }
-  }else {
-    // sendFanButtonClick();
+  if(model->getCurrentState() == STATE::Fan) {
+    model->requestManualState(STATE::Idle);
+  } else {
+    model->requestManualState(STATE::Fan);
   }
-    
 }
 
 void onOFFButtonClick() {
-  if (whoAmI() == ROLE::CHILD) {
-    // sendOffButtonClick();
-    return;
-  }
-
   printf("Off button selected\n");
   model->setMode(MODE::Off);
 }

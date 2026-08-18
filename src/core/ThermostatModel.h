@@ -40,6 +40,7 @@ class ThermostatModel {
         float getTemp() const { return ts_.temp; }
         void requestManualState(STATE newState);
         STATE getCurrentState() const { return ts_.state; }
+        ThermostatState getState() const { return ts_; }
         
         // Getting updates from it
         void subscribe(ThermostatObserver observer);

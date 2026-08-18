@@ -285,7 +285,9 @@ void ThermostatModel::applyRemoteState(const ThermostatState& remoteThermState) 
         return;
     }
 
+    ROLE currentRole = ts_.role;
     ts_ = remoteThermState;
+    ts_.role = currentRole;
     _notify(); // Notify observers of the state change
 }
 

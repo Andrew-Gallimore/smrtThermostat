@@ -28,6 +28,7 @@ enum ModelToNetworkEventType {
     M2N_PublishHAState = 0,
     M2N_PublishSyncState,
     M2N_SendSyncCommand,
+    M2N_SendSyncPing,
 };
 
 struct ModelToNetworkEvent {
@@ -48,7 +49,7 @@ bool wifiCredentialsChanged = false;
 char deviceName[10] = "Sanctuary";
 // char deviceName[19] = "Testing_Thermostat";
 char HAaddr[12] = "10.1.10.132";
-char Version[8] = "2.0.1";
+char Version[8] = "2.1.0";
 
 // Intializing HVAC object 
 HAHVAC hvac(
@@ -69,23 +70,16 @@ char toChildModeTopic[64];
 char toChildStateTopic[64];
 char toChildUnlockedTopic[64];
 
-char toParentGoalTempTopic[64];
-char toParentTempTopic[64];
-char toParentModeTopic[64];
-char toParentStateTopic[64];
-char toParentUnlockedTopic[64];
-
 char syncStateTopic[64];
 char syncCommandTopic[64];
+char syncPingTopic[64];
 char remoteStateTopic[64];
-char remoteCommandTopic[64];
 
 
 // Helpers for sending state and commands between parent and child thermostats
 
 String serializeThermostatState(const ThermostatState& state) {
-    return String("role=") + String((int)state.role)
-         + ";mode=" + String((int)state.mode)
+    return String("mode=") + String((int)state.mode)
          + ";lastMode=" + String((int)state.lastMode)
          + ";state=" + String((int)state.state)
          + ";goalState=" + String((int)state.goalState)
@@ -95,7 +89,6 @@ String serializeThermostatState(const ThermostatState& state) {
 }
 
 bool deserializeThermostatState(const char* payload, ThermostatState& outState) {
-    int role = 0;
     int mode = 0;
     int lastMode = 0;
     int state = 0;
@@ -105,6 +98,30 @@ bool deserializeThermostatState(const char* payload, ThermostatState& outState) 
     int unlocked = 0;
 
     int matched = sscanf(payload,
+        "mode=%d;lastMode=%d;state=%d;goalState=%d;temp=%f;goalTemp=%f;unlocked=%d",
+        &mode,
+        &lastMode,
+        &state,
+        &goalState,
+        &temp,
+        &goalTemp,
+        &unlocked
+    );
+
+    if (matched == 7) {
+        outState.mode = static_cast<MODE>(mode);
+        outState.lastMode = static_cast<MODE>(lastMode);
+        outState.state = static_cast<STATE>(state);
+        outState.goalState = static_cast<GOAL_STATE>(goalState);
+        outState.temp = temp;
+        outState.goalTemp = goalTemp;
+        outState.unlocked = (unlocked != 0);
+        return true;
+    }
+
+    // Legacy support for payloads that included role explicitly.
+    int role = 0;
+    matched = sscanf(payload,
         "role=%d;mode=%d;lastMode=%d;state=%d;goalState=%d;temp=%f;goalTemp=%f;unlocked=%d",
         &role,
         &mode,
@@ -120,7 +137,6 @@ bool deserializeThermostatState(const char* payload, ThermostatState& outState) 
         return false;
     }
 
-    outState.role = static_cast<ROLE>(role);
     outState.mode = static_cast<MODE>(mode);
     outState.lastMode = static_cast<MODE>(lastMode);
     outState.state = static_cast<STATE>(state);
@@ -262,6 +278,20 @@ static void sendSyncCommandNow(const Command& cmd) {
     xSemaphoreGive(mqttMutex);
 }
 
+static void sendSyncPingNow() {
+    if (whoAmI() != ROLE::CHILD) {
+        return;
+    }
+
+    if (!mqttMutex) {
+        return;
+    }
+
+    xSemaphoreTake(mqttMutex, portMAX_DELAY);
+    mqtt.publish(syncPingTopic, "ping");
+    xSemaphoreGive(mqttMutex);
+}
+
 static void processModelToNetworkEvents() {
     if (!modelToNetworkQueue) {
         return;
@@ -278,6 +308,9 @@ static void processModelToNetworkEvents() {
                 break;
             case M2N_SendSyncCommand:
                 sendSyncCommandNow(event.command);
+                break;
+            case M2N_SendSyncPing:
+                sendSyncPingNow();
                 break;
         }
     }
@@ -355,10 +388,11 @@ void publishSyncState(const ThermostatState& state) {
     if (whoAmI() != ROLE::PARENT) {
         return;
     }
-
+    
     if (!modelToNetworkQueue) {
         return;
     }
+    Serial.println("Publishing sync state");
 
     ModelToNetworkEvent event;
     event.type = M2N_PublishSyncState;
@@ -377,11 +411,32 @@ void sendSyncCommand(const Command& cmd) {
         return;
     }
 
+    Serial.println("Sending sync command");
+    Serial.println(serializeCommand(cmd).c_str());
+
     ModelToNetworkEvent event;
     event.type = M2N_SendSyncCommand;
     event.command = cmd;
     if (!enqueueModelToNetworkEvent(event)) {
         Serial.println("Warning: sendSyncCommand queue full");
+    }
+}
+
+void sendSyncPing() {
+    if (whoAmI() != ROLE::CHILD) {
+        return;
+    }
+
+    if (!modelToNetworkQueue) {
+        return;
+    }
+
+    Serial.println("Sending sync ping to parent");
+
+    ModelToNetworkEvent event;
+    event.type = M2N_SendSyncPing;
+    if (!enqueueModelToNetworkEvent(event)) {
+        Serial.println("Warning: sendSyncPing queue full");
     }
 }
 
@@ -562,6 +617,11 @@ void onMqttMessage(const char* topic, const uint8_t* payload, uint16_t length) {
         } else {
             Serial.println("Failed to deserialize sync state payload");
         }
+    } else if(whoAmI() == ROLE::PARENT && strcmp(topic, syncPingTopic) == 0) {
+        Serial.println("Received sync ping from child");
+        if (model) {
+            publishSyncState(model->getState());
+        }
     } else if(whoAmI() == ROLE::PARENT && strcmp(topic, syncCommandTopic) == 0) {
         Serial.println("Received sync command from child");
         Command cmd;
@@ -595,9 +655,17 @@ void onMqttConnected() {
     if(whoAmI() == ROLE::PARENT) {
         // To receive command requests from children
         mqtt.subscribe(syncCommandTopic);
+        // To receive child state requests when reconnecting
+        mqtt.subscribe(syncPingTopic);
+
+        if (model) {
+            publishSyncState(model->getState());
+        }
     } else {
         // To receive parent state updates
         mqtt.subscribe(remoteStateTopic);
+
+        sendSyncPing();
     }
 }
 
@@ -708,6 +776,8 @@ void wifiMqttTask(void* parameter) {
             if (WiFi.status() == WL_CONNECTED) {
                 Serial.println("WiFi STA connected to router!");
                 Serial.printf("IP Address: %s\n", WiFi.localIP().toString().c_str());
+                Serial.printf("MAC Address: %s\n", WiFi.macAddress().c_str());
+                Serial.printf("Whoami: %s\n", (whoAmI() == ROLE::PARENT) ? "Parent" : "Child");
 
                 // Start MQTT only after successful WiFi connection
                 // mqtt.begin("10.1.10.132", 1883, "thermostat", "thermostat");
@@ -789,23 +859,12 @@ void setupMQTT() {
     snprintf(toChildUnlockedTopic, sizeof(toChildGoalTempTopic),
             "privSync/%s/toChild/unlocked", deviceName);
 
-    snprintf(toParentGoalTempTopic, sizeof(toParentGoalTempTopic),
-            "privSync/%s/toParent/goal_temp", deviceName);
-    snprintf(toParentTempTopic, sizeof(toParentTempTopic),
-            "privSync/%s/toParent/temp", deviceName);
-    snprintf(toParentModeTopic, sizeof(toParentModeTopic),
-            "privSync/%s/toParent/mode", deviceName);
-    snprintf(toParentStateTopic, sizeof(toParentStateTopic),
-            "privSync/%s/toParent/state", deviceName);
-    snprintf(toParentUnlockedTopic, sizeof(toParentUnlockedTopic),
-            "privSync/%s/toParent/unlocked", deviceName);
-
     char parentSyncId[32];
     snprintf(parentSyncId, sizeof(parentSyncId), "%s", getParentMac());
     snprintf(syncStateTopic, sizeof(syncStateTopic), "sync/%s/state", parentSyncId);
     snprintf(syncCommandTopic, sizeof(syncCommandTopic), "sync/%s/command", parentSyncId);
+    snprintf(syncPingTopic, sizeof(syncPingTopic), "sync/%s/ping", parentSyncId);
     snprintf(remoteStateTopic, sizeof(remoteStateTopic), "%s", syncStateTopic);
-    snprintf(remoteCommandTopic, sizeof(remoteCommandTopic), "%s", syncCommandTopic);
     
     Serial.println();
     Serial.println("Connecting to the network...");
@@ -858,37 +917,3 @@ void loopMQTT() {
 }
 
 
-
-
-
-
-void sendAutoButtonClick() {
-    xSemaphoreTake(mqttMutex, portMAX_DELAY);
-    mqtt.publish(toParentModeTopic, String((int)MODE::Auto).c_str());
-    xSemaphoreGive(mqttMutex);
-}
-void sendManualButtonClick() {
-    xSemaphoreTake(mqttMutex, portMAX_DELAY);
-    mqtt.publish(toParentModeTopic, String((int)MODE::Manual).c_str());
-    xSemaphoreGive(mqttMutex);
-}
-void sendOffButtonClick() {
-    xSemaphoreTake(mqttMutex, portMAX_DELAY);
-    mqtt.publish(toParentModeTopic, String((int)MODE::Off).c_str());
-    xSemaphoreGive(mqttMutex);
-}
-void sendFanButtonClick() {
-    xSemaphoreTake(mqttMutex, portMAX_DELAY);
-    mqtt.publish(toParentStateTopic, String((int)STATE::Fan).c_str());
-    xSemaphoreGive(mqttMutex);
-}
-void sendCoolButtonClick() {
-    xSemaphoreTake(mqttMutex, portMAX_DELAY);
-    mqtt.publish(toParentStateTopic, String((int)STATE::Cool).c_str());
-    xSemaphoreGive(mqttMutex);
-}
-void sendHeatButtonClick() {
-    xSemaphoreTake(mqttMutex, portMAX_DELAY);
-    mqtt.publish(toParentStateTopic, String((int)STATE::Heat).c_str());
-    xSemaphoreGive(mqttMutex);
-}
