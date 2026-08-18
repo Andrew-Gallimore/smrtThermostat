@@ -278,6 +278,7 @@ void UIinitializeMenu() {
     lv_obj_set_style_bg_color(menuShowButton, C_Background, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(menuShowButton, 3, LV_PART_MAIN); // 0.01*255 ≈ 3
     lv_obj_set_style_border_width(menuShowButton, 0, LV_PART_MAIN);
+    lv_obj_add_flag(menuShowButton, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_style_shadow_width(menuShowButton, 0, LV_PART_MAIN);
     lv_obj_set_style_shadow_spread(menuShowButton, 0, LV_PART_MAIN);
     lv_obj_set_style_shadow_opa(menuShowButton, LV_OPA_TRANSP, LV_PART_MAIN);

@@ -1,6 +1,7 @@
 #include "ThermostatView.h"
 #include <Arduino.h>
 #include <cmath>
+#include "../menu.h"
 #include "../colorHelper.h"
 #include "../fonts/chivo_mono_158.h"
 #include "../fonts/chivo_mono_110.h"
@@ -888,6 +889,7 @@ void ThermostatView::_renderMode() {
         _hideDelay();
         _hideUnlock();
         _showOnButton();
+        UIhideMenuButton();
         if (goalText != nullptr) {
             lv_label_set_text(goalText, "Off");
             lv_obj_remove_flag(goalText, LV_OBJ_FLAG_HIDDEN);
@@ -896,6 +898,7 @@ void ThermostatView::_renderMode() {
     }
 
     _hideOnButton();
+    UIshowMenuButton();
     if (ts_.mode == MODE::Auto) {
         _showAutoButtons();
         _hideManualButtons();
