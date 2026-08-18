@@ -35,9 +35,15 @@ private:
 
     lv_obj_t* heatZone = nullptr;
     bool heatZoneVisible = false;
+    lv_anim_t heatZoneAnim;
+    lv_timer_t* heatZoneFallbackTimer = nullptr;
+    int32_t heatZoneFallbackTargetY = -70;
 
     lv_obj_t* coolZone = nullptr;
     bool coolZoneVisible = false;
+    lv_anim_t coolZoneAnim;
+    lv_timer_t* coolZoneFallbackTimer = nullptr;
+    int32_t coolZoneFallbackTargetY = 70;
 
     lv_obj_t* autoBTN1 = nullptr;
     lv_obj_t* autoBTN2 = nullptr;
@@ -96,6 +102,9 @@ private:
     void _hideHeatZone();
     void _showCoolZone();
     void _hideCoolZone();
+    void _cancelStateZoneAnimations();
+    static void _heatZoneAnimationReadyCb(lv_anim_t* anim);
+    static void _coolZoneAnimationReadyCb(lv_anim_t* anim);
     void _showAutoButtons();
     void _hideAutoButtons();
     void _showManualButtons();
