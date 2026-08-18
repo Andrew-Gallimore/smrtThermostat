@@ -47,15 +47,18 @@ enum COMMAND_TYPE {
   SetMode,
   SetTempGoal,
   SetTemp,
-  SetState
+  SetState,
+  SetUnlocked
 };
 
 struct Command {
+  Command() : type(SetMode), mode(Off), tempGoal(0.0f), temp(0.0f), state(Idle), unlocked(false) {}
   COMMAND_TYPE type;
   MODE mode;
   float tempGoal;
   float temp;
   STATE state;
+  bool unlocked;
 };
 
 #endif // CORE_STRUCTS_H

@@ -106,6 +106,12 @@ bool ThermostatModel::unlockTest(int val1, int val2, int val3, int val4) {
     if(val1 == CODE_VAL1 && val2 == CODE_VAL2 && val3 == CODE_VAL3 && val4 == CODE_VAL4) {
         ts_.unlocked = true;
         Serial.println("System unlocked!!");
+        if (ts_.role == ROLE::CHILD && commandSender_) {
+            Command cmd;
+            cmd.type = COMMAND_TYPE::SetUnlocked;
+            cmd.unlocked = true;
+            commandSender_(cmd);
+        }
     }else {
         ts_.unlocked = false;
     }
@@ -117,8 +123,22 @@ bool ThermostatModel::unlockTest(int val1, int val2, int val3, int val4) {
     return ts_.unlocked;
 }
 
+void ThermostatModel::setUnlocked(bool unlocked) {
+    ts_.unlocked = unlocked;
+    if (statePublisher_) {
+        statePublisher_(ts_);
+    }
+    _notify();
+}
+
 void ThermostatModel::lock() {
     ts_.unlocked = false;
+    if (ts_.role == ROLE::CHILD && commandSender_) {
+        Command cmd;
+        cmd.type = COMMAND_TYPE::SetUnlocked;
+        cmd.unlocked = false;
+        commandSender_(cmd);
+    }
     if (statePublisher_) {
         statePublisher_(ts_);
     }

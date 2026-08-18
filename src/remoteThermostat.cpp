@@ -170,7 +170,8 @@ String serializeCommand(const Command& cmd) {
          + ";mode=" + String((int)cmd.mode)
          + ";tempGoal=" + String(cmd.tempGoal, 1)
          + ";temp=" + String(cmd.temp, 1)
-         + ";state=" + String((int)cmd.state);
+         + ";state=" + String((int)cmd.state)
+         + ";unlocked=" + String(cmd.unlocked ? 1 : 0);
 }
 
 bool deserializeCommand(const char* payload, Command& outCommand) {
@@ -179,17 +180,19 @@ bool deserializeCommand(const char* payload, Command& outCommand) {
     float tempGoal = 0.0f;
     float temp = 0.0f;
     int state = 0;
+    int unlocked = 0;
 
     int matched = sscanf(payload,
-        "type=%d;mode=%d;tempGoal=%f;temp=%f;state=%d",
+        "type=%d;mode=%d;tempGoal=%f;temp=%f;state=%d;unlocked=%d",
         &type,
         &mode,
         &tempGoal,
         &temp,
-        &state
+        &state,
+        &unlocked
     );
 
-    if (matched != 5) {
+    if (matched != 6) {
         return false;
     }
 
@@ -198,6 +201,7 @@ bool deserializeCommand(const char* payload, Command& outCommand) {
     outCommand.tempGoal = tempGoal;
     outCommand.temp = temp;
     outCommand.state = static_cast<STATE>(state);
+    outCommand.unlocked = (unlocked != 0);
     return true;
 }
 
@@ -369,6 +373,9 @@ void processNetworkToModelEvents() {
                         break;
                     case COMMAND_TYPE::SetState:
                         model->requestManualState(event.command.state);
+                        break;
+                    case COMMAND_TYPE::SetUnlocked:
+                        model->setUnlocked(event.command.unlocked);
                         break;
                     case COMMAND_TYPE::SetTemp:
                         model->setTemp(event.command.temp);
