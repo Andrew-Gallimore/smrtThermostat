@@ -49,7 +49,7 @@ bool wifiCredentialsChanged = false;
 char deviceName[10] = "Sanctuary";
 // char deviceName[19] = "Testing_Thermostat";
 char HAaddr[12] = "10.1.10.132";
-char Version[8] = "2.1.0";
+char Version[8] = "2.2.0";
 
 // Intializing HVAC object 
 HAHVAC hvac(

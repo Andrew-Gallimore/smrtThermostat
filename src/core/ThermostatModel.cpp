@@ -1,10 +1,10 @@
 #include "ThermostatModel.h"
 
 // Initial variables
-// const int LONG_STATE_DELAY = 480000;    // 8 minutes in ms
-// const int REG_STATE_DELAY = 300000;     // 5 minutes in ms
-const int LONG_STATE_DELAY = 20000;    // 15s in ms
-const int REG_STATE_DELAY = 10000;     // 10s in ms
+const int LONG_STATE_DELAY = 480000;    // 8 minutes in ms
+const int REG_STATE_DELAY = 300000;     // 5 minutes in ms
+// const int LONG_STATE_DELAY = 20000;    // 15s in ms
+// const int REG_STATE_DELAY = 10000;     // 10s in ms
 
 long int RESET_LIMIT_MS = 2 * 3600000; // 2 hours
 
@@ -242,6 +242,7 @@ void ThermostatModel::setTemp(float newTemp) {
     } else {
         // The reason this is in the else is because update automatically
         //      handles sync and notifying
+        Serial.println("Notifying observers of temperature change.");
         _notify(); // Notify observers of the change
     }
 
@@ -361,22 +362,22 @@ void ThermostatModel::update() {
 }
 
 void ThermostatModel::_notify() {
-    // Check that something has changed
-    if(memcmp(&ts_, &oldTs_, sizeof(ThermostatState)) != 0) {
-        // Update relays based on the new state
-        _setRelaysFromState(ts_.state);
+    // Update relays based on the new state
+    _setRelaysFromState(ts_.state);
 
-        if(ts_.role == ROLE::PARENT && statePublisher_) {
-            statePublisher_(ts_);
-        }
-
-        // Notify observers of the change(s)
-        for(auto& observer : observers_) {
-            observer(ts_);
-        }
-
-        oldTs_ = ts_;
+    if(ts_.role == ROLE::PARENT && statePublisher_) {
+        statePublisher_(ts_);
     }
+
+    // Notify observers of the change(s)
+    for(auto& observer : observers_) {
+        observer(ts_);
+    }
+
+    oldTs_ = ts_;
+    // // Check that something has changed
+    // if(memcmp(&ts_, &oldTs_, sizeof(ThermostatState)) != 0) {
+    // }
 }
 
 /**

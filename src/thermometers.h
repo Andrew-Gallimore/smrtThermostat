@@ -6,9 +6,10 @@
 #include <vector>
 #include <string>
 #include <Arduino.h>
+#include "core/ThermostatModel.h"
 
 // Forward declaration for main.cpp
-void onNewTempReading(float temp);
+extern ThermostatModel* model;
 
 // Forward declaration for storage.cpp
 void getStoredThermometerList(std::vector<String>& thermometerNames);

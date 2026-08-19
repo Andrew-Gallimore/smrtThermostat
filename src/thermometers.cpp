@@ -89,11 +89,12 @@ void recaculateTemp() {
             count++;
         }
     }
+
+    Serial.printf("Recalculated average temperature: %.2f from %d sensors\n", (count > 0) ? (sum / count) : -1.0, count);
     
     if (count > 0) {
         avgTemp = sum / count;
-        // onNewTempReading(avgTemp);
-        // TODO: Replace with model method
+        model->setTemp(avgTemp);
     }
 }
 
