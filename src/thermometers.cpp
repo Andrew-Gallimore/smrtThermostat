@@ -1,4 +1,5 @@
 #include "./thermometers.h"
+#include "./remoteThermostat.h"
 
 // std::vector<SENSOR> initSensors() {
 //     std::vector<SENSOR> v;
@@ -94,7 +95,7 @@ void recaculateTemp() {
     
     if (count > 0) {
         avgTemp = sum / count;
-        model->setTemp(avgTemp);
+        updateSharedTemp(avgTemp);
     }
 }
 

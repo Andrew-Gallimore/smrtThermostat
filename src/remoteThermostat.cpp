@@ -12,6 +12,7 @@ enum NetworkToModelEventType {
     N2M_SetMode,
     N2M_RequestManualState,
     N2M_ApplyRemoteState,
+    N2M_UpdateTemp,
     N2M_SyncCommand,
 };
 
@@ -363,6 +364,11 @@ void processNetworkToModelEvents() {
             case N2M_ApplyRemoteState:
                 model->applyRemoteState(event.remoteState);
                 break;
+            case N2M_UpdateTemp:
+                if (whoAmI() == ROLE::PARENT) {
+                    model->setTemp(event.temperature);
+                }
+                break;
             case N2M_SyncCommand:
                 switch (event.command.type) {
                     case COMMAND_TYPE::SetMode:
@@ -424,6 +430,22 @@ void publishSyncState(const ThermostatState& state) {
     event.state = state;
     if (!enqueueModelToNetworkEvent(event)) {
         Serial.println("Warning: publishSyncState queue full");
+    }
+}
+
+void updateSharedTemp(float temp) {
+    if (whoAmI() != ROLE::PARENT) {
+        return;
+    }
+    if (!networkToModelQueue) {
+        return;
+    }
+
+    NetworkToModelEvent event;
+    event.type = N2M_UpdateTemp;
+    event.temperature = temp;
+    if (!enqueueNetworkToModelEvent(event)) {
+        Serial.println("Warning: updateSharedTemp queue full");
     }
 }
 
