@@ -1,26 +1,21 @@
 #ifndef REMOTE_THERMOSTAT_H
 #define REMOTE_THERMOSTAT_H
 
-#include "stateMachine.h"
+#include "core/core-structs.h"
+#include "core/ThermostatModel.h"
 #include <WiFi.h>
 #include <ArduinoHA.h>
 #include "storage.h"
 
-// Forward declarations for main
-extern volatile bool flag_offButton;
-extern volatile bool flag_manualButton;
-extern volatile bool flag_autoButton;
-extern volatile bool flag_manualHeatButton;
-extern volatile bool flag_manualCoolButton;
-extern volatile bool flag_manualFanButton;
+extern ThermostatModel* model;
 
-void parentOnTempGoal(float newTempGoal);
-void childOnTempGoal(float newTempGoal);
-void childOnRemoteTemp(float newTemp);
-void parentOnRemoteMode(MODE newMode);
-void childOnRemoteMode(MODE newMode);
-void parentOnRemoteState(STATE newState);
-void childOnRemoteState(STATE newState);
+// Forward declarations
+// void onRemoteTemp(float newTemp);
+// void onRemoteTempGoal(float newGoalTemp);
+// void onRemoteMode(MODE newMode);
+// void onHARemoteMode(MODE newMode);
+// void onRemoteState(STATE newState);
+// void onHARemoteState(STATE newState);
 
 // Regular declarations
 void updateSharedTemp(float temp);
@@ -43,17 +38,15 @@ void setWiFiCredentials(char* ssid, char* password);
 
 // void onNewRemoteTemp(float newTemp);
 // void onNewRemoteGoalTemp(float newGoalTemp);
-// void parentOnRemoteMode(MODE newMode);
+// void onRemoteMode(MODE newMode);
 // void onNewRemoteState(STATE newState);
-
-void sendAutoButtonClick();
-void sendManualButtonClick();
-void sendOffButtonClick();
-void sendFanButtonClick();
-void sendCoolButtonClick();
-void sendHeatButtonClick();
 
 void setupMQTT();
 void loopMQTT();
+void processNetworkToModelEvents();
+
+void publishSyncState(const ThermostatState& state);
+void sendSyncCommand(const Command& cmd);
+void publishHAState(const ThermostatState& state);
 
 #endif // REMOTE_THERMOSTAT_H
