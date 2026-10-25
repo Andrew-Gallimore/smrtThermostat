@@ -43,7 +43,7 @@ WiFiClient client;
 HADevice device;
 HAMqtt mqtt(client, device);
 
-bool wifiCredentialsChanged = false;
+volatile bool wifiCredentialsChanged = false;
 
 // char deviceName[28] = "Community_Hall_1";
 // char deviceName[17] = "Community_Hall_2";
@@ -719,34 +719,6 @@ void onMqttDisconnected() {
 }
 
 
-// Function for starting an asyncronous network scan
-void scanAvailableNetworks() {
-    Serial.println("Starting network scan...");
-    WiFi.scanDelete(); // Clear previous scan results
-    
-    WiFi.scanNetworks(true); // Starting an async scan
-}
-
-// Getter function to access the available networks
-void getAvailableNetworks(WiFiNetwork* networks, int& networkCount) {
-    Serial.println("Getting available networks...");
-    int scanResult = WiFi.scanComplete();
-    
-    if (scanResult == WIFI_SCAN_FAILED || scanResult <= 0) {
-        networkCount = 0;
-        return;
-    }
-
-    networkCount = (scanResult < 16) ? scanResult : 16;
-
-    for (int i = 0; i < networkCount; i++) {
-        strncpy(networks[i].ssid, WiFi.SSID(i).c_str(), 32);
-        networks[i].ssid[32] = '\0';
-        networks[i].rssi = WiFi.RSSI(i);
-    }
-    Serial.printf("Found %d networks.\n", networkCount);
-}
-
 // Function to set WiFi credentials and signal the task to reconnect
 void setWiFiCredentials(char* ssid, char* password) {
     storeNetworkSSID(ssid);
@@ -797,6 +769,12 @@ void wifiMqttTask(void* parameter) {
         getStoredNetworkSSID(currentWifiSSID, sizeof(currentWifiSSID));
         char currentWifiPassword[65];
         getStoredNetworkPWD(currentWifiPassword, sizeof(currentWifiPassword));
+
+        // Idle until an SSID is set; setWiFiCredentials() sets the changed flag, which wakes this loop
+        if (currentWifiSSID[0] == '\0') {
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+            continue;
+        }
 
         // (Re)start WiFi connection if not connected
         if (WiFi.status() != WL_CONNECTED) {

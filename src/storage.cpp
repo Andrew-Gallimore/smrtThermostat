@@ -6,7 +6,7 @@
 
 #define DO_SD_CARD true
 
-bool JUST_TREAT_ME_AS_PARENT = false;
+bool JUST_TREAT_ME_AS_PARENT = true;
 
 uint8_t myMac[6];
 bool myMacFound = false;
@@ -238,6 +238,8 @@ void readStates() {
   });
 }
 
+// TODO: "SSID,password" breaks on commas in the SSID, whitespace in the password, and an
+// empty password (open network is never loaded). Switch to newline-separated fields.
 void readNetworkConfig() {
   readFile("/network.txt", [](const char* data) {
       // Parse CSV line

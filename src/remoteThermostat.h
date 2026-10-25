@@ -23,13 +23,6 @@ void updateSharedTempGoal(float goalTemp);
 void updateSharedMode(MODE mode);
 void updateSharedState(STATE state);
 
-struct WiFiNetwork {
-    char ssid[33];
-    int rssi;
-};
-
-void scanAvailableNetworks();
-void getAvailableNetworks(WiFiNetwork* networks, int& networkCount);
 void setWiFiCredentials(char* ssid, char* password);
 
 // void requestRemoteTemp(float temp);

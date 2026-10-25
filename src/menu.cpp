@@ -19,11 +19,12 @@ lv_obj_t* settingsContent = nullptr;
 
 lv_obj_t* networkPage = nullptr;
 lv_obj_t* networkContent = nullptr;
-lv_obj_t* networkAvailableList = nullptr;
-lv_anim_t networkAnim;
 lv_obj_t* currentNetworkLabel = nullptr;
-lv_obj_t* currentNetworkNameLabel = nullptr;
-lv_obj_t* currentNetworkSignalIcon = nullptr;
+lv_obj_t* networkSSIDInput = nullptr;
+lv_obj_t* networkPWDInput = nullptr;
+lv_obj_t* networkConnectBtn = nullptr;
+lv_obj_t* networkKeyboard = nullptr;
+lv_timer_t* networkStatusTimer = nullptr;
 
 lv_obj_t* thermometersPage = nullptr;
 lv_obj_t* thermometersContent = nullptr;
@@ -848,149 +849,171 @@ void UIhideSettings() {
 
 
 
-const int networkBtnHeight    = 50;
-const int networkBtnTopMargin = 12;   // top margin before first button
-const int networkBtnSpacing   = 0;
+static NetworkStatus networkStatus = NetworkStatus::NotSet;
+static char networkStatusSSID[33] = "";
+
+void UIsetNetworkStatus(NetworkStatus status, const char* ssid) {
+    networkStatus = status;
+    strncpy(networkStatusSSID, ssid ? ssid : "", sizeof(networkStatusSSID) - 1);
+    networkStatusSSID[sizeof(networkStatusSSID) - 1] = '\0';
+
+    if (currentNetworkLabel == nullptr) {
+        return;
+    }
+
+    char text[64];
+    lv_color_t color;
+    switch (status) {
+        case NetworkStatus::Connected:
+            snprintf(text, sizeof(text), "Connected: %s", networkStatusSSID);
+            color = lv_color_hex(0x4CD964);
+            break;
+        case NetworkStatus::Connecting:
+            snprintf(text, sizeof(text), "Connecting: %s", networkStatusSSID);
+            color = C_Orange;
+            break;
+        default:
+            snprintf(text, sizeof(text), "Not set");
+            color = lv_color_hex(0xA1A1A1);
+            break;
+    }
+    lv_label_set_text(currentNetworkLabel, text);
+    lv_obj_set_style_text_color(currentNetworkLabel, color, LV_PART_MAIN);
+}
+
+// Temporary: polls WiFi directly until the status is piped in from the core model
+static void networkStatusPoll() {
+    char ssid[33];
+    getStoredNetworkSSID(ssid, sizeof(ssid));
+
+    NetworkStatus status;
+    if (ssid[0] == '\0') {
+        status = NetworkStatus::NotSet;
+    } else if (WiFi.status() == WL_CONNECTED) {
+        status = NetworkStatus::Connected;
+    } else {
+        status = NetworkStatus::Connecting;
+    }
+    UIsetNetworkStatus(status, ssid);
+}
+
+static void networkHideKeyboard() {
+    if (networkKeyboard == nullptr) {
+        return;
+    }
+    lv_keyboard_set_textarea(networkKeyboard, nullptr);
+    lv_obj_add_flag(networkKeyboard, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void networkConnect() {
+    const char* ssid = lv_textarea_get_text(networkSSIDInput);
+    const char* pwd = lv_textarea_get_text(networkPWDInput);
+    if (ssid == nullptr || ssid[0] == '\0') {
+        return;
+    }
+
+    char ssidBuf[33];
+    char pwdBuf[65];
+    strncpy(ssidBuf, ssid, sizeof(ssidBuf) - 1);
+    ssidBuf[sizeof(ssidBuf) - 1] = '\0';
+    strncpy(pwdBuf, pwd ? pwd : "", sizeof(pwdBuf) - 1);
+    pwdBuf[sizeof(pwdBuf) - 1] = '\0';
+
+    setWiFiCredentials(ssidBuf, pwdBuf);
+
+    lv_textarea_set_text(networkPWDInput, "");
+    networkHideKeyboard();
+    UIsetNetworkStatus(NetworkStatus::Connecting, ssidBuf);
+}
+
+static lv_obj_t* networkCreateInput(const char* placeholder, int y, uint32_t maxLen, bool isPassword) {
+    lv_obj_t* input = lv_textarea_create(networkContent);
+    lv_obj_set_size(input, 432, 56);
+    lv_obj_align(input, LV_ALIGN_TOP_MID, 0, y);
+    lv_textarea_set_one_line(input, true);
+    lv_textarea_set_max_length(input, maxLen);
+    lv_textarea_set_password_mode(input, isPassword);
+    lv_textarea_set_placeholder_text(input, placeholder);
+    lv_obj_set_style_text_font(input, &chivo_mono_34, LV_PART_MAIN);
+    lv_obj_set_style_text_color(input, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(input, C_BTN_BG_Lighter, LV_PART_MAIN);
+    lv_obj_set_style_border_width(input, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(input, 12, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(input, C_BTN_Highlight_Lighter, LV_PART_MAIN | LV_STATE_FOCUSED);
+    lv_obj_set_style_border_color(input, C_Orange, LV_PART_CURSOR);
+    lv_obj_set_style_border_color(input, C_Orange, LV_PART_CURSOR | LV_STATE_FOCUSED);
+
+    lv_obj_add_event_cb(input, [](lv_event_t* e) {
+        lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
+        lv_keyboard_set_textarea(networkKeyboard, target);
+        lv_obj_remove_flag(networkKeyboard, LV_OBJ_FLAG_HIDDEN);
+    }, LV_EVENT_CLICKED, nullptr);
+
+    return input;
+}
 
 void UIinitializeNetwork() {
     networkPage = lv_obj_create(lv_scr_act());
     networkContent = lv_obj_create(networkPage);
     settingsPageCreator(networkPage, "Network", networkContent);
 
+    // Tapping empty space dismisses the keyboard
+    lv_obj_add_event_cb(networkPage, [](lv_event_t* e) {
+        networkHideKeyboard();
+    }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_add_event_cb(networkContent, [](lv_event_t* e) {
+        networkHideKeyboard();
+    }, LV_EVENT_CLICKED, nullptr);
+
     currentNetworkLabel = lv_label_create(networkContent);
-    lv_label_set_text(currentNetworkLabel, "Connected");
-    lv_obj_align(currentNetworkLabel, LV_ALIGN_TOP_LEFT, 12, networkBtnTopMargin);
-    lv_obj_set_size(currentNetworkLabel, LV_SIZE_CONTENT, 32);
-    lv_obj_set_style_text_color(currentNetworkLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
+    lv_label_set_text(currentNetworkLabel, "Not set");
+    lv_obj_align(currentNetworkLabel, LV_ALIGN_TOP_LEFT, 12, 4);
+    lv_obj_set_width(currentNetworkLabel, 432);
+    lv_label_set_long_mode(currentNetworkLabel, LV_LABEL_LONG_DOT);
     lv_obj_set_style_text_font(currentNetworkLabel, &chivo_mono_34, LV_PART_MAIN);
 
-    lv_obj_t* availableNetworkLabel = lv_label_create(networkContent);
-    lv_label_set_text(availableNetworkLabel, "Available");
-    lv_obj_align(availableNetworkLabel, LV_ALIGN_TOP_LEFT, 12, networkBtnTopMargin + ((networkBtnSpacing + networkBtnHeight) * 3));
-    lv_obj_set_size(availableNetworkLabel, LV_SIZE_CONTENT, 32);
-    lv_obj_set_style_text_color(availableNetworkLabel, lv_color_hex(0xFFFFFF), LV_PART_MAIN);
-    lv_obj_set_style_text_font(availableNetworkLabel, &chivo_mono_34, LV_PART_MAIN);
+    networkSSIDInput = networkCreateInput("SSID", 54, 32, false);
+    networkPWDInput  = networkCreateInput("Password", 120, 64, true);
 
+    networkConnectBtn = lv_btn_create(networkContent);
+    lv_obj_align(networkConnectBtn, LV_ALIGN_BOTTOM_RIGHT, 0, -24);
+    UIapplyButtonStyle(networkConnectBtn, true);
+    lv_obj_t* connectLabel = lv_label_create(networkConnectBtn);
+    lv_label_set_text(connectLabel, "Connect");
+    lv_obj_set_style_text_font(connectLabel, &chivo_mono_34, LV_PART_MAIN);
+    lv_obj_add_event_cb(networkConnectBtn, [](lv_event_t* e) {
+        networkConnect();
+    }, LV_EVENT_CLICKED, nullptr);
 
-    lv_obj_t* currentNetworkBtn = lv_btn_create(networkContent);
-    lv_obj_set_size(currentNetworkBtn, 456, networkBtnHeight);
-    lv_obj_align(currentNetworkBtn, LV_ALIGN_TOP_LEFT, 0, networkBtnTopMargin + ((networkBtnSpacing + networkBtnHeight) * 1));
-    lv_obj_set_style_bg_opa(currentNetworkBtn, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(currentNetworkBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_outline_width(currentNetworkBtn, 0, LV_PART_MAIN);
-    lv_obj_set_style_shadow_opa(currentNetworkBtn, LV_OPA_TRANSP, LV_PART_MAIN);
-
-    currentNetworkNameLabel = lv_label_create(currentNetworkBtn);
-    lv_label_set_text(currentNetworkNameLabel, "UI Error");
-    lv_obj_align(currentNetworkNameLabel, LV_ALIGN_LEFT_MID, 12, 0);
-    lv_obj_set_size(currentNetworkNameLabel, LV_SIZE_CONTENT, 32);
-    lv_obj_set_style_text_color(currentNetworkNameLabel, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
-    lv_obj_set_style_text_font(currentNetworkNameLabel, &chivo_mono_34, LV_PART_MAIN);
-
-    currentNetworkSignalIcon = lv_img_create(currentNetworkBtn);
-    lv_img_set_src(currentNetworkSignalIcon, &wifi_30_1);
-    lv_obj_set_size(currentNetworkSignalIcon, 30, 30);
-    lv_obj_align(currentNetworkSignalIcon, LV_ALIGN_RIGHT_MID, -12, 0);
-
-
-    // List of available networks
-    networkAvailableList = lv_obj_create(networkContent);
-    lv_obj_set_size(networkAvailableList, 456, 356);
-    lv_obj_align(networkAvailableList, LV_ALIGN_TOP_LEFT, 0, networkBtnTopMargin + ((networkBtnSpacing + networkBtnHeight) * 4));
-    lv_obj_set_style_bg_color(networkAvailableList, C_Background_Panel, LV_PART_MAIN);
-    lv_obj_set_style_border_width(networkAvailableList, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(networkAvailableList, 0, LV_PART_MAIN);
-    lv_obj_set_scrollbar_mode(networkAvailableList, LV_SCROLLBAR_MODE_OFF);
-
-
-    // LVGL animation for refresing list of available networks
-    lv_anim_init(&networkAnim);
-    lv_anim_set_var(&networkAnim, networkAvailableList);
-    lv_anim_set_exec_cb(&networkAnim, [](void* obj, int32_t v) {
-        lv_obj_t* parent = static_cast<lv_obj_t*>(obj);
-
-        WiFiNetwork networks[16];
-        int numNetworks = 0;
-        getAvailableNetworks(networks, numNetworks);
-
-        // Remove all contents of parent first
-        while(lv_obj_get_child_cnt(parent) > 0) {
-            lv_obj_t* lastChild = lv_obj_get_child(parent, lv_obj_get_child_cnt(parent) - 1);
-            lv_obj_del(lastChild);
-        }
-
-        // Adding loading message if no networks found
-        if(numNetworks == 0) {
-            lv_obj_t* loadingLabel = lv_label_create(parent);
-            char label[14] = "Scanning...";
-
-            lv_label_set_text(loadingLabel, label);
-            lv_obj_align(loadingLabel, LV_ALIGN_TOP_MID, 0, 30);
-            lv_obj_set_style_text_color(loadingLabel, lv_color_hex(0xA1A1A1), LV_PART_MAIN);
-            lv_obj_set_style_text_font(loadingLabel, &chivo_mono_34, LV_PART_MAIN);
-            return;
-        }
-
-        // For number of networks, display that list
-        for(int i = 0; i < numNetworks; i++) {
-            lv_obj_t* btn = lv_obj_get_child(parent, i);
-            if(btn == nullptr) {
-                // Create button
-                btn = lv_btn_create(parent);
-                lv_obj_set_size(btn, 456, networkBtnHeight);
-                lv_obj_align(btn, LV_ALIGN_TOP_LEFT, 0, networkBtnTopMargin + ((networkBtnSpacing + networkBtnHeight) * i));
-                lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-                lv_obj_set_style_border_width(btn, 0, LV_PART_MAIN);
-                lv_obj_set_style_outline_width(btn, 0, LV_PART_MAIN);
-                lv_obj_set_style_shadow_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-
-                lv_obj_t* label = lv_label_create(btn);
-                lv_label_set_text(label, networks[i].ssid);
-                lv_obj_align(label, LV_ALIGN_LEFT_MID, 12, 0);
-                lv_obj_set_size(label, 360, 24);
-                lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
-                lv_obj_set_style_text_color(label, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
-                lv_obj_set_style_text_font(label, &chivo_mono_34, LV_PART_MAIN);
-
-                lv_obj_t* icon = lv_img_create(btn);
-                if(networks[i].rssi > -65) {
-                    // Best
-                    lv_img_set_src(icon, &wifi_30_3);
-                }else if(networks[i].rssi > -75) {
-                    // Medium
-                    lv_img_set_src(icon, &wifi_30_2);
-                }else {
-                    // Low
-                    lv_img_set_src(icon, &wifi_30_1);
-                }
-                lv_obj_set_size(icon, 30, 30);
-                lv_obj_align(icon, LV_ALIGN_RIGHT_MID, -12, 0);
-
-
-                // copy SSID into heap memory so it survives after this scope
-                char* ssid_cpy = strdup(networks[i].ssid);
-                if (ssid_cpy == nullptr) ssid_cpy = strdup("");
-
-                // Add event to connect to network on click
-                lv_obj_add_event_cb(btn, [](lv_event_t* e) {
-                    lv_event_code_t code = lv_event_get_code(e);
-                    char* ssid = static_cast<char*>(lv_event_get_user_data(e));
-                    if (code == LV_EVENT_CLICKED) {
-                        Serial.printf("New SSID: %s\n", ssid);
-                        // char pwd[17] = "\0"; // For testing purposes only
-                        // setWiFiCredentials(ssid, pwd);
-                    } else if (code == LV_EVENT_DELETE) {
-                        free(ssid);
-                    }
-                }, LV_EVENT_ALL, ssid_cpy);
+    // Parented to the top layer (not the page) so it can span the full 480px screen without being clipped or scrolling the page
+    networkKeyboard = lv_keyboard_create(lv_layer_top());
+    lv_obj_set_size(networkKeyboard, 480, 182);
+    lv_obj_align(networkKeyboard, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_bg_color(networkKeyboard, C_Background, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(networkKeyboard, C_BTN_BG, LV_PART_ITEMS);
+    lv_obj_set_style_bg_color(networkKeyboard, C_BTN_Highlight, LV_PART_ITEMS | LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(networkKeyboard, C_BTN_BG, LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(networkKeyboard, C_BTN_Highlight, LV_PART_ITEMS | LV_STATE_CHECKED | LV_STATE_PRESSED);
+    lv_obj_set_style_bg_opa(networkKeyboard, LV_OPA_COVER, LV_PART_ITEMS);
+    lv_obj_set_style_color_filter_opa(networkKeyboard, LV_OPA_TRANSP, LV_PART_ITEMS | LV_STATE_PRESSED);
+    lv_obj_set_style_text_color(networkKeyboard, lv_color_hex(0xFFFFFF), LV_PART_ITEMS);
+    lv_obj_set_style_text_color(networkKeyboard, lv_color_hex(0xFFFFFF), LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(networkKeyboard, lv_color_hex(0xFFFFFF), LV_PART_ITEMS | LV_STATE_PRESSED);
+    lv_obj_set_style_text_font(networkKeyboard, LV_FONT_DEFAULT, LV_PART_ITEMS);
+    lv_obj_add_flag(networkKeyboard, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(networkKeyboard, [](lv_event_t* e) {
+        lv_event_code_t code = lv_event_get_code(e);
+        if (code == LV_EVENT_READY) {
+            // Enter on SSID moves on to password, enter on password connects
+            if (lv_keyboard_get_textarea(networkKeyboard) == networkSSIDInput) {
+                lv_keyboard_set_textarea(networkKeyboard, networkPWDInput);
+            } else {
+                networkConnect();
             }
+        } else if (code == LV_EVENT_CANCEL) {
+            networkHideKeyboard();
         }
-
-    });
-    lv_anim_set_values(&networkAnim, 0, 4);
-    lv_anim_set_time(&networkAnim, 8000); // 1 second
-    lv_anim_set_path_cb(&networkAnim, lv_anim_path_linear);
-    lv_anim_set_repeat_count(&networkAnim, 1); // Repeat 8 times
+    }, LV_EVENT_ALL, nullptr);
 }
 
 void UIshowNetwork() {
@@ -1000,52 +1023,16 @@ void UIshowNetwork() {
     
     lv_obj_remove_flag(networkPage, LV_OBJ_FLAG_HIDDEN);
 
-    // Get current network info and update UI
-    scanAvailableNetworks();
+    // SSID is prefilled, password is never shown
+    char storedSSID[33];
+    getStoredNetworkSSID(storedSSID, sizeof(storedSSID));
+    lv_textarea_set_text(networkSSIDInput, storedSSID);
+    lv_textarea_set_text(networkPWDInput, "");
 
-    bool isConnected = WiFi.isConnected();
-    char currentNetworkBuffer[33];
-    getStoredNetworkSSID(currentNetworkBuffer, sizeof(currentNetworkBuffer));
-
-    lv_label_set_text(currentNetworkNameLabel, currentNetworkBuffer);
-
-    if(isConnected) {
-        lv_label_set_text(currentNetworkLabel, "Connected");
-    }else {
-        // Current connected/connecting network
-        lv_label_set_text(currentNetworkLabel, "Connecting to...");
+    networkStatusPoll();
+    if (networkStatusTimer == nullptr) {
+        networkStatusTimer = lv_timer_create([](lv_timer_t*) { networkStatusPoll(); }, 1000, nullptr);
     }
-
-
-    // Start animation to refresh available networks
-    lv_anim_start(&networkAnim);
-
-
-    // Available networks
-    // const int numThermostats = 5;
-    // for (int i = 0; i < numThermostats; ++i) {
-    //     lv_obj_t* ThermostatsBtn = lv_btn_create(networkAvailableList);
-    //     lv_obj_set_size(ThermostatsBtn, 456, networkBtnHeight);
-    //     lv_obj_align(ThermostatsBtn, LV_ALIGN_TOP_LEFT, 0, networkBtnTopMargin + ((networkBtnSpacing + networkBtnHeight) * i));
-    //     lv_obj_set_style_bg_opa(ThermostatsBtn, LV_OPA_TRANSP, LV_PART_MAIN);
-    //     lv_obj_set_style_border_width(ThermostatsBtn, 0, LV_PART_MAIN);
-    //     lv_obj_set_style_outline_width(ThermostatsBtn, 0, LV_PART_MAIN);
-    //     lv_obj_set_style_shadow_opa(ThermostatsBtn, LV_OPA_TRANSP, LV_PART_MAIN);
-
-    //     lv_obj_t* ThermostatsLabel = lv_label_create(ThermostatsBtn);
-    //     char labelText[32];
-    //     snprintf(labelText, sizeof(labelText), "Peer Thermostat %d", i + 1);
-    //     lv_label_set_text(ThermostatsLabel, labelText);
-    //     lv_obj_align(ThermostatsLabel, LV_ALIGN_LEFT_MID, 12, 0);
-    //     lv_obj_set_size(ThermostatsLabel, LV_SIZE_CONTENT, 32);
-    //     lv_obj_set_style_text_color(ThermostatsLabel, lv_color_hex(0xD7D7D7), LV_PART_MAIN);
-    //     lv_obj_set_style_text_font(ThermostatsLabel, &chivo_mono_34, LV_PART_MAIN);
-
-    //     lv_obj_t* ThermostatsIcon = lv_img_create(ThermostatsBtn);
-    //     lv_img_set_src(ThermostatsIcon, &right_30);
-    //     lv_obj_set_size(ThermostatsIcon, 30, 30);
-    //     lv_obj_align(ThermostatsIcon, LV_ALIGN_RIGHT_MID, -12, 0);
-    // }
 }
 
 void UIhideNetwork() {
@@ -1055,7 +1042,13 @@ void UIhideNetwork() {
     
     lv_obj_add_flag(networkPage, LV_OBJ_FLAG_HIDDEN);
 
-    lv_anim_del(&networkAnim, nullptr);
+    networkHideKeyboard();
+    lv_textarea_set_text(networkPWDInput, "");
+
+    if (networkStatusTimer != nullptr) {
+        lv_timer_delete(networkStatusTimer);
+        networkStatusTimer = nullptr;
+    }
 }
 
 
@@ -1076,7 +1069,7 @@ void UIpopulateThermometers() {
 
         // Creating list item
         lv_obj_set_size(listItem, 456, thermBtnHeight);
-        lv_obj_align(listItem, LV_ALIGN_TOP_LEFT, 0, thermBtnTopMargin + ((thermBtnSpacing + networkBtnHeight) * i));
+        lv_obj_align(listItem, LV_ALIGN_TOP_LEFT, 0, thermBtnTopMargin + ((thermBtnSpacing + thermBtnHeight) * i));
         lv_obj_set_style_bg_opa(listItem, LV_OPA_TRANSP, LV_PART_MAIN);
         lv_obj_set_style_border_width(listItem, 0, LV_PART_MAIN);
         lv_obj_set_style_outline_width(listItem, 0, LV_PART_MAIN);

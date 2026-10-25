@@ -43,6 +43,9 @@ void UIinitializeSettings();
 void UIshowSettings();
 void UIhideSettings();
 
+enum class NetworkStatus { NotSet, Connecting, Connected };
+
+void UIsetNetworkStatus(NetworkStatus status, const char* ssid);
 void UIinitializeNetwork();
 void UIshowNetwork();
 void UIhideNetwork();
