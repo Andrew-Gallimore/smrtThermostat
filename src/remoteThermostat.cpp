@@ -84,6 +84,10 @@ String serializeThermostatState(const ThermostatState& state) {
     if (state.lastHeavyTime > 0) {
         lastHeavyElapsed = millis() - state.lastHeavyTime;
     }
+    long int lastInteractionElapsed = 0;
+    if (state.lastInteractionTime > 0) {
+        lastInteractionElapsed = millis() - state.lastInteractionTime;
+    }
     return String("mode=") + String((int)state.mode)
          + ";lastMode=" + String((int)state.lastMode)
          + ";state=" + String((int)state.state)
@@ -92,7 +96,8 @@ String serializeThermostatState(const ThermostatState& state) {
          + ";goalTemp=" + String(state.goalTemp, 1)
          + ";unlocked=" + String(state.unlocked ? 1 : 0)
          + ";lastHeavyState=" + String((int)state.lastHeavyState)
-         + ";lastHeavyElapsed=" + String(lastHeavyElapsed);
+         + ";lastHeavyElapsed=" + String(lastHeavyElapsed)
+         + ";lastInteractionElapsed=" + String(lastInteractionElapsed);
 }
 
 bool deserializeThermostatState(const char* payload, ThermostatState& outState) {
@@ -105,9 +110,10 @@ bool deserializeThermostatState(const char* payload, ThermostatState& outState) 
     int unlocked = 0;
     int lastHeavyState = 0;
     long int lastHeavyElapsed = 0;
+    long int lastInteractionElapsed = 0;
 
     int matched = sscanf(payload,
-        "mode=%d;lastMode=%d;state=%d;goalState=%d;temp=%f;goalTemp=%f;unlocked=%d;lastHeavyState=%d;lastHeavyElapsed=%ld",
+        "mode=%d;lastMode=%d;state=%d;goalState=%d;temp=%f;goalTemp=%f;unlocked=%d;lastHeavyState=%d;lastHeavyElapsed=%ld;lastInteractionElapsed=%ld",
         &mode,
         &lastMode,
         &state,
@@ -116,44 +122,12 @@ bool deserializeThermostatState(const char* payload, ThermostatState& outState) 
         &goalTemp,
         &unlocked,
         &lastHeavyState,
-        &lastHeavyElapsed
+        &lastHeavyElapsed,
+        &lastInteractionElapsed
     );
 
-    if (matched == 9) {
-        outState.mode = static_cast<MODE>(mode);
-        outState.lastMode = static_cast<MODE>(lastMode);
-        outState.state = static_cast<STATE>(state);
-        outState.goalState = static_cast<GOAL_STATE>(goalState);
-        outState.temp = temp;
-        outState.goalTemp = goalTemp;
-        outState.unlocked = (unlocked != 0);
-        outState.lastHeavyState = static_cast<STATE>(lastHeavyState);
-        if (lastHeavyElapsed < 0) {
-            lastHeavyElapsed = 0;
-        }
-        if (lastHeavyElapsed > millis()) {
-            lastHeavyElapsed = millis();
-        }
-        outState.lastHeavyTime = millis() - lastHeavyElapsed;
-        return true;
-    }
-
-    // Legacy support for payloads that included role explicitly.
-    int role = 0;
-    matched = sscanf(payload,
-        "role=%d;mode=%d;lastMode=%d;state=%d;goalState=%d;temp=%f;goalTemp=%f;unlocked=%d",
-        &role,
-        &mode,
-        &lastMode,
-        &state,
-        &goalState,
-        &temp,
-        &goalTemp,
-        &unlocked
-    );
-
-    if (matched != 8) {
-        return false;
+    if (matched != 10) {
+        return false; // Failed to parse the payload correctly
     }
 
     outState.mode = static_cast<MODE>(mode);
@@ -163,6 +137,27 @@ bool deserializeThermostatState(const char* payload, ThermostatState& outState) 
     outState.temp = temp;
     outState.goalTemp = goalTemp;
     outState.unlocked = (unlocked != 0);
+    outState.lastHeavyState = static_cast<STATE>(lastHeavyState);
+    
+    if (lastHeavyElapsed < 0) {
+        lastHeavyElapsed = 0;
+    }
+    if (lastHeavyElapsed > millis()) {
+        lastHeavyElapsed = millis();
+    }
+    outState.lastHeavyTime = millis() - lastHeavyElapsed;
+
+    if (lastInteractionElapsed < 0) {
+        lastInteractionElapsed = 0;
+    }
+    if (lastInteractionElapsed == 0) {
+        outState.lastInteractionTime = 0;
+    } else if (lastInteractionElapsed >= millis()) {
+        // Keep expired timers nonzero so the model enforces the timeout.
+        outState.lastInteractionTime = 1;
+    } else {
+        outState.lastInteractionTime = millis() - lastInteractionElapsed;
+    }
     return true;
 }
 
@@ -350,15 +345,17 @@ void processNetworkToModelEvents() {
 
     NetworkToModelEvent event;
     while (xQueueReceive(networkToModelQueue, &event, 0) == pdTRUE) {
-        model->clearInteractionTimer();
         switch (event.type) {
             case N2M_SetGoalTemp:
+                model->clearInteractionTimer();
                 model->setGoalTemp(event.temperature);
                 break;
             case N2M_SetMode:
+                model->clearInteractionTimer();
                 model->setMode(event.mode);
                 break;
             case N2M_RequestManualState:
+                model->clearInteractionTimer();
                 model->requestManualState(event.state);
                 break;
             case N2M_ApplyRemoteState:
@@ -370,6 +367,7 @@ void processNetworkToModelEvents() {
                 }
                 break;
             case N2M_SyncCommand:
+                model->newInteraction();
                 switch (event.command.type) {
                     case COMMAND_TYPE::SetMode:
                         model->setMode(event.command.mode);
