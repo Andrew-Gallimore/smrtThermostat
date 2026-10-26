@@ -311,6 +311,7 @@ void UIinitializeMenu() {
         if(i == 2) continue; // Making the upper corner shape
 
         lv_obj_t* dot = lv_obj_create(menuDotGrid);
+        lv_obj_remove_flag(dot, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_size(dot, 12, 12);
         lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
         lv_obj_set_style_bg_color(dot, C_Orange, LV_PART_MAIN);
