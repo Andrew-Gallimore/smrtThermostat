@@ -47,7 +47,7 @@ static void ThermostatView_onButtonEvent(lv_event_t* e) {
     lv_obj_set_style_bg_opa(target, LV_OPA_COVER, LV_PART_INDICATOR);
 
     lv_timer_t* timer = lv_timer_create_basic();
-    lv_timer_set_period(timer, 850);
+    lv_timer_set_period(timer, 550);
     lv_timer_set_repeat_count(timer, 1);
     lv_timer_set_cb(timer, ThermostatView_onButtonTimerCallback);
     lv_timer_set_user_data(timer, target);

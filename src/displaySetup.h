@@ -13,6 +13,9 @@ extern ThermostatModel* model;
 
 // Display variables
 #define GFX_BL 38
+#define BL_PWM_CHANNEL 0
+#define BL_PWM_FREQ 5000
+#define BL_PWM_BITS 8
 Arduino_ESP32SPI* bus;
 Arduino_RGB_Display* gfx;
 
@@ -68,6 +71,49 @@ static uint32_t getTick(void) {
   return millis();
 }
 
+static void backlightFadeTask(void* param) {
+  const uint32_t durationMs = (uint32_t)(uintptr_t)param;
+  const uint32_t maxDuty = (1 << BL_PWM_BITS) - 1;
+  const uint32_t start = millis();
+  uint32_t elapsed;
+  while ((elapsed = millis() - start) < durationMs) {
+    // Squared curve approximates perceived-linear brightness
+    float t = (float)elapsed / durationMs;
+    ledcWrite(BL_PWM_CHANNEL, (uint32_t)(t * t * maxDuty));
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+  ledcWrite(BL_PWM_CHANNEL, maxDuty);
+  vTaskDelete(NULL);
+}
+
+// Non-blocking fade from off to full brightness (runs in its own task)
+void fadeInBacklight(uint32_t durationMs = 600) {
+  if (xTaskCreate(backlightFadeTask, "blFade", 2048, (void*)(uintptr_t)durationMs, 1, NULL) != pdPASS) {
+    ledcWrite(BL_PWM_CHANNEL, (1 << BL_PWM_BITS) - 1);
+  }
+}
+
+// Draws a centered boot message directly via GFX (LVGL isn't running during setup)
+void showBootMessage(const char* title, const char* status = "") {
+  gfx->fillScreen(BLACK);
+  gfx->setTextColor(WHITE);
+
+  gfx->setTextSize(5);
+  int16_t x1, y1;
+  uint16_t w, h;
+  gfx->getTextBounds(title, 0, 0, &x1, &y1, &w, &h);
+  gfx->setCursor((TFT_HOR_RES - w) / 2, 190);
+  gfx->print(title);
+
+  if (status[0] != '\0') {
+    gfx->setTextSize(2);
+    gfx->setTextColor(LIGHTGREY);
+    gfx->getTextBounds(status, 0, 0, &x1, &y1, &w, &h);
+    gfx->setCursor((TFT_HOR_RES - w) / 2, 270);
+    gfx->print(status);
+  }
+}
+
 void setupDisplay() {
     // Initialize the touch part of the display
     touch_init();
@@ -96,10 +142,10 @@ void setupDisplay() {
     }
 
     // Turning on backlight, and filling screen with black
-    #ifdef GFX_BL
-    pinMode(GFX_BL, OUTPUT);
-    digitalWrite(GFX_BL, HIGH);
-    #endif
+    // Backlight is PWM-driven and starts off; fadeInBacklight() brings it up
+    ledcSetup(BL_PWM_CHANNEL, BL_PWM_FREQ, BL_PWM_BITS);
+    ledcAttachPin(GFX_BL, BL_PWM_CHANNEL);
+    ledcWrite(BL_PWM_CHANNEL, 0);
     gfx->setCursor(100, 200);
     gfx->displayOn();
     gfx->fillScreen(BLACK);

@@ -158,17 +158,22 @@ void setup()
   // NOTE: Needs to happen before initializing storage
   //    because I think it messes with SPI stuff
   setupDisplay();
-
-  delay(500);
+  showBootMessage("Loading...", "Starting up");
+  fadeInBacklight(800);
+  delay(300);
   
+  showBootMessage("Loading...", "Reading storage");
   initializeStorage();
   
-  delay(500);
+  delay(300);
   
+  showBootMessage("Loading...", "Starting sensors");
   // This starts the BLE scan task for thermometers
   startBLESensorScan();
   
   setupMQTT();
+
+  showBootMessage("Loading...", "Building interface");
 
   // Create the thermostat model
   model = new ThermostatModel(whoAmI());
