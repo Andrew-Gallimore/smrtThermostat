@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <cmath>
 #include <nvs_flash.h>
+#include <WebServer.h>
+#include <ElegantOTA.h>
 // #include "./homeAssistant.h"
 #include "./displaySetup.h"
 #include "./menu.h"
@@ -15,10 +17,8 @@
 ThermostatModel* model;
 ThermostatView view;
 
-
-
-
-
+WebServer otaServer(80);
+bool otaServerStarted = false;
 
 // Callback functions for UI buttons
 void onTempUpButtonClick(lv_event_t* e) {
@@ -129,6 +129,10 @@ void setup()
   Serial.begin(115200);
   Serial.println("Setup...");
 
+  Serial.printf("PSRAM found: %s\n", psramFound() ? "yes" : "no");
+  Serial.printf("PSRAM size: %u bytes; free: %u bytes\n",
+              ESP.getPsramSize(), ESP.getFreePsram());
+
   pinMode(GPIO_RELAY1, OUTPUT);
   pinMode(GPIO_RELAY2, OUTPUT);
   pinMode(GPIO_RELAY3, OUTPUT);
@@ -143,7 +147,6 @@ void setup()
   if (err != ESP_OK) {
       Serial.printf("NVS init failed: %d\n", err);
   }
-
 
   // Set up ESP-NOW first (this will set the WiFi channel)
   // makeThermostatConnection();
@@ -271,6 +274,16 @@ void loop() {
   processNetworkToModelEvents();
   loopMQTT();
 
+  if (!otaServerStarted && WiFi.status() == WL_CONNECTED) {
+    ElegantOTA.begin(&otaServer);
+    otaServer.begin();
+    otaServerStarted = true;
+  }
+
+  if (otaServerStarted) {
+    otaServer.handleClient();
+    ElegantOTA.loop();
+  }
 
   if(flag_offButton) {
     flag_offButton = false;
